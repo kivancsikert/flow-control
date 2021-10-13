@@ -1,0 +1,17 @@
+queue_rules:
+  - name: default
+    conditions:
+      - check-success=ready-to-merge
+
+pull_request_rules:
+  - name: automatic merge for non-draft PRs on main when CI passes
+    conditions:
+      - base=main
+      - check-success=ready-to-merge
+      - label=ready to merge
+    actions:
+      queue:
+        name: default
+      label:
+        remove:
+          - ready to merge
