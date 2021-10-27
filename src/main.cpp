@@ -72,8 +72,11 @@ void loop() {
     double flowRate = meter->getCurrentFlowrate();
     auto currentTime = milliseconds { millis() };
     if (flowRate == 0.0) {
-        if ((currentTime - lastSeenFlow) > NO_FLOW_TIMEOUT) {
-            Serial.println("No flow for 5 seconds, going to sleep");
+        auto timeSinceLastFlow = currentTime - lastSeenFlow;
+        if (timeSinceLastFlow > NO_FLOW_TIMEOUT) {
+            Serial.printf("No flow for %ld seconds, going to sleep for %ld seconds or until woken up by flow\n",
+                (long) duration_cast<seconds>(timeSinceLastFlow).count(),
+                (long) duration_cast<seconds>(SLEEP_PERIOD).count());
             // Go to deep sleep until timeout or woken up by GPIO interrupt
             esp_sleep_enable_timer_wakeup(duration_cast<microseconds>(SLEEP_PERIOD).count());
             esp_sleep_enable_ext0_wakeup(FLOW_PIN, digitalRead(FLOW_PIN) == LOW);
