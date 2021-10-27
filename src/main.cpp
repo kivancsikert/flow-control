@@ -3,7 +3,7 @@
 #include <FlowMeter.h>
 #include <Wire.h>
 
-const int FLOW_PIN = GPIO_NUM_19;
+const int FLOW_PIN = GPIO_NUM_33;
 
 // get a new FlowMeter instance for an uncalibrated flow sensor
 FlowMeter* meter;
