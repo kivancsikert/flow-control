@@ -64,6 +64,7 @@ void loop() {
             Serial.printf("No flow for %ld seconds, going to sleep for %ld seconds or until woken up by flow\n",
                 (long) duration_cast<seconds>(timeSinceLastFlow).count(),
                 (long) duration_cast<seconds>(SLEEP_PERIOD).count());
+            Serial.flush();
             // Go to deep sleep until timeout or woken up by GPIO interrupt
             esp_sleep_enable_timer_wakeup(duration_cast<microseconds>(SLEEP_PERIOD).count());
             esp_sleep_enable_ext0_wakeup(FLOW_PIN, digitalRead(FLOW_PIN) == LOW);
