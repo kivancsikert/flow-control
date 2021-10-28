@@ -1,6 +1,7 @@
 // include the library code:
 #include <Arduino.h>
 #include <FlowMeter.h>
+#include <SPIFFS.h>
 #include <WiFiManager.h>
 #include <Wire.h>
 #include <chrono>
@@ -22,9 +23,20 @@ IRAM_ATTR void meterCount() {
     meter->count();
 }
 
+void fatalError(String message) {
+    Serial.println(message);
+    Serial.flush();
+    delay(10000);
+    ESP.restart();
+}
+
 void setup() {
     Serial.begin(115200);
     Serial.println();
+
+    if (!SPIFFS.begin()) {
+        fatalError("Could not initialize file system");
+    }
 
     // Explicitly set mode, ESP defaults to STA+AP
     WiFi.mode(WIFI_STA);
