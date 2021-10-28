@@ -15,6 +15,7 @@ using namespace std::chrono;
 using namespace Mqtt;
 
 const gpio_num_t FLOW_PIN = GPIO_NUM_33;
+const gpio_num_t LED_PIN = GPIO_NUM_19;
 
 const auto MEASUREMENT_PERIOD = seconds { 1 };
 const auto NO_FLOW_TIMEOUT = seconds { 5 };
@@ -44,6 +45,9 @@ void fatalError(String message) {
 void setup() {
     Serial.begin(115200);
     Serial.println();
+
+    pinMode(LED_PIN, OUTPUT);
+    digitalWrite(LED_PIN, HIGH);
 
     if (!SPIFFS.begin()) {
         fatalError("Could not initialize file system");
@@ -113,6 +117,7 @@ void loop() {
                 (long) duration_cast<seconds>(timeSinceLastFlow).count(),
                 (long) duration_cast<seconds>(SLEEP_PERIOD).count());
             Serial.flush();
+            digitalWrite(LED_PIN, LOW);
             // Go to deep sleep until timeout or woken up by GPIO interrupt
             esp_sleep_enable_timer_wakeup(duration_cast<microseconds>(SLEEP_PERIOD).count());
             esp_sleep_enable_ext0_wakeup(FLOW_PIN, digitalRead(FLOW_PIN) == LOW);
