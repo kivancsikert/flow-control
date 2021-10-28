@@ -1,12 +1,18 @@
 // include the library code:
 #include <Arduino.h>
+#include <ArduinoJson.hpp>
+#include <ESPmDNS.h>
 #include <FlowMeter.h>
+#include <MqttHandler.hpp>
 #include <SPIFFS.h>
 #include <WiFiManager.h>
 #include <Wire.h>
 #include <chrono>
 
+#include "version.h"
+
 using namespace std::chrono;
+using namespace Mqtt;
 
 const gpio_num_t FLOW_PIN = GPIO_NUM_33;
 
@@ -17,7 +23,12 @@ const auto SLEEP_PERIOD = minutes { 1 };
 // get a new FlowMeter instance for an uncalibrated flow sensor
 FlowMeter* meter;
 
+WiFiClient client;
+
+MqttHandler mqtt;
+
 auto lastSeenFlow = milliseconds::zero();
+auto lastMeasurement = milliseconds::zero();
 
 IRAM_ATTR void meterCount() {
     meter->count();
@@ -53,16 +64,41 @@ void setup() {
     // then goes into a blocking loop awaiting
     // configuration and will return success result.
     if (!wm.autoConnect()) {
-        Serial.println("Failed to connect");
-        ESP.restart();
+        fatalError("Failed to connect to WIFI");
     }
+
+    // TODO Make configurable
+    String hostname = "flow-alert";
+
+    WiFi.setHostname(hostname.c_str());
+    MDNS.begin(hostname.c_str());
+
+    File mqttConfigFile = SPIFFS.open("/mqtt-config.json", FILE_READ);
+    DynamicJsonDocument mqttConfigJson(mqttConfigFile.size() * 2);
+    DeserializationError error = deserializeJson(mqttConfigJson, mqttConfigFile);
+    if (error) {
+        Serial.println(mqttConfigFile.readString());
+        fatalError("Failed to read MQTT config file at /mqtt-config.json: " + String(error.c_str()));
+    }
+    mqtt.begin(
+        client,
+        mqttConfigJson.as<JsonObject>(),
+        [](const JsonObject& json) {
+            Serial.println("Cannot update config yet");
+        },
+        [](const JsonObject& json) {
+            Serial.println("Unknown command");
+        });
 
     meter = new FlowMeter(digitalPinToInterrupt(FLOW_PIN), UncalibratedSensor, meterCount, RISING);
 
     lastSeenFlow = milliseconds { millis() };
+    lastMeasurement = milliseconds { millis() };
 }
 
 void loop() {
+    mqtt.loop();
+
     // process the (possibly) counted ticks
     auto measurementMillis = duration_cast<milliseconds>(MEASUREMENT_PERIOD).count();
     delay(measurementMillis);
@@ -92,4 +128,12 @@ void loop() {
     Serial.print(" l/min, ");
     Serial.print(meter->getTotalVolume());
     Serial.println(" l total.");
+
+    DynamicJsonDocument doc(1024);
+    JsonObject root = doc.to<JsonObject>();
+    root["model"] = "flow-alert@mk1";
+    root["description"] = "Flow alerter";
+    root["firmware"] = VERSION;
+    root["flow"] = flowRate;
+    mqtt.publish("status", doc);
 }
