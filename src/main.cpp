@@ -62,6 +62,14 @@ void setup() {
     // these are stored by the ESP library
     //wm.resetSettings();
 
+    // Allow some time for connecting to the WIFI, otherwise
+    // open configuration portal
+    wm.setConnectTimeout(20);
+
+    // Close the configuration portal after some time and reboot
+    // if no WIFI is configured in that time
+    wm.setConfigPortalTimeout(300);
+
     // Automatically connect using saved credentials,
     // if connection fails, it starts an access point
     // with an auto-generated SSID and no password,
