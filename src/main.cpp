@@ -18,7 +18,7 @@ const gpio_num_t FLOW_PIN = GPIO_NUM_33;
 const gpio_num_t LED_PIN = GPIO_NUM_19;
 
 const auto MEASUREMENT_PERIOD = seconds { 1 };
-const auto NO_FLOW_TIMEOUT = seconds { 5 };
+const auto NO_FLOW_TIMEOUT = hours { 5 };
 const auto SLEEP_PERIOD = minutes { 1 };
 
 // get a new FlowMeter instance for an uncalibrated flow sensor
@@ -135,11 +135,13 @@ void loop() {
         lastSeenFlow = currentTime;
     }
 
+    double totalVolume = meter->getTotalVolume();
+
     // output some measurement result
     Serial.print("Currently ");
     Serial.print(flowRate);
     Serial.print(" l/min, ");
-    Serial.print(meter->getTotalVolume());
+    Serial.print(totalVolume);
     Serial.println(" l total.");
 
     DynamicJsonDocument doc(1024);
@@ -147,6 +149,7 @@ void loop() {
     root["model"] = "flow-alert@mk1";
     root["description"] = "Flow alerter";
     root["firmware"] = VERSION;
-    root["flow"] = flowRate;
+    root["flowRate"] = flowRate;
+    root["totalVolume"] = totalVolume;
     mqtt.publish("status", doc);
 }
