@@ -2,38 +2,34 @@
 #include <Arduino.h>
 #include <ArduinoJson.hpp>
 #include <ESPmDNS.h>
-#include <FlowMeter.h>
-#include <MqttHandler.hpp>
 #include <SPIFFS.h>
 #include <WiFiManager.h>
 #include <Wire.h>
 #include <chrono>
 
+#include <HttpUpdateHandler.hpp>
+#include <MqttHandler.hpp>
+#include <OtaHandler.hpp>
+#include <Telemetry.hpp>
+
+#include "MeterHandler.hpp"
+#include "TelemetryHandler.hpp"
 #include "version.h"
 
 using namespace std::chrono;
-using namespace Mqtt;
+using namespace farmhub::client;
 
 const gpio_num_t FLOW_PIN = GPIO_NUM_33;
 const gpio_num_t LED_PIN = GPIO_NUM_19;
 
-const auto MEASUREMENT_PERIOD = seconds { 1 };
-const auto NO_FLOW_TIMEOUT = hours { 5 };
-const auto SLEEP_PERIOD = minutes { 1 };
-
-// get a new FlowMeter instance for an uncalibrated flow sensor
-FlowMeter* meter;
-
 WiFiClient client;
 
 MqttHandler mqtt;
-
-auto lastSeenFlow = milliseconds::zero();
-auto lastMeasurement = milliseconds::zero();
-
-IRAM_ATTR void meterCount() {
-    meter->count();
-}
+MeterHandler flowMeter;
+TelemetryPublisher telemetryPublisher(mqtt, "events");
+TelemetryHandler telemetry(telemetryPublisher);
+OtaHandler otaHandler;
+HttpUpdateHandler httpUpdateHandler(mqtt, VERSION);
 
 void fatalError(String message) {
     Serial.println(message);
@@ -43,11 +39,10 @@ void fatalError(String message) {
 }
 
 void setup() {
+    flowMeter.begin(FLOW_PIN, LED_PIN);
+
     Serial.begin(115200);
     Serial.println();
-
-    pinMode(LED_PIN, OUTPUT);
-    digitalWrite(LED_PIN, HIGH);
 
     if (!SPIFFS.begin()) {
         fatalError("Could not initialize file system");
@@ -93,63 +88,22 @@ void setup() {
         fatalError("Failed to read MQTT config file at /mqtt-config.json: " + String(error.c_str()));
     }
     mqtt.begin(
-        client,
         mqttConfigJson.as<JsonObject>(),
         [](const JsonObject& json) {
             Serial.println("Cannot update config yet");
-        },
-        [](const JsonObject& json) {
-            Serial.println("Unknown command");
         });
 
-    meter = new FlowMeter(digitalPinToInterrupt(FLOW_PIN), UncalibratedSensor, meterCount, RISING);
+    httpUpdateHandler.begin();
+    otaHandler.begin(hostname.c_str());
 
-    lastSeenFlow = milliseconds { millis() };
-    lastMeasurement = milliseconds { millis() };
+    telemetryPublisher.registerProvider(flowMeter);
+    telemetry.begin();
 }
 
 void loop() {
+    flowMeter.loop();
+    telemetry.loop();
     mqtt.loop();
 
-    // process the (possibly) counted ticks
-    auto measurementMillis = duration_cast<milliseconds>(MEASUREMENT_PERIOD).count();
-    delay(measurementMillis);
-    meter->tick(measurementMillis);
-
-    double flowRate = meter->getCurrentFlowrate();
-    auto currentTime = milliseconds { millis() };
-    if (flowRate == 0.0) {
-        auto timeSinceLastFlow = currentTime - lastSeenFlow;
-        if (timeSinceLastFlow > NO_FLOW_TIMEOUT) {
-            Serial.printf("No flow for %ld seconds, going to sleep for %ld seconds or until woken up by flow\n",
-                (long) duration_cast<seconds>(timeSinceLastFlow).count(),
-                (long) duration_cast<seconds>(SLEEP_PERIOD).count());
-            Serial.flush();
-            digitalWrite(LED_PIN, LOW);
-            // Go to deep sleep until timeout or woken up by GPIO interrupt
-            esp_sleep_enable_timer_wakeup(duration_cast<microseconds>(SLEEP_PERIOD).count());
-            esp_sleep_enable_ext0_wakeup(FLOW_PIN, digitalRead(FLOW_PIN) == LOW);
-            esp_deep_sleep_start();
-        }
-    } else {
-        lastSeenFlow = currentTime;
-    }
-
-    double totalVolume = meter->getTotalVolume();
-
-    // output some measurement result
-    Serial.print("Currently ");
-    Serial.print(flowRate);
-    Serial.print(" l/min, ");
-    Serial.print(totalVolume);
-    Serial.println(" l total.");
-
-    DynamicJsonDocument doc(1024);
-    JsonObject root = doc.to<JsonObject>();
-    root["model"] = "flow-alert@mk1";
-    root["description"] = "Flow alerter";
-    root["firmware"] = VERSION;
-    root["flowRate"] = flowRate;
-    root["totalVolume"] = totalVolume;
-    mqtt.publish("status", doc);
+    delay(100);
 }
