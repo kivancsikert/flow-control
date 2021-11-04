@@ -39,14 +39,14 @@ void fatalError(String message) {
 }
 
 void setup() {
-    flowMeter.begin(FLOW_PIN, LED_PIN);
-
     Serial.begin(115200);
     Serial.println();
 
     if (!SPIFFS.begin()) {
         fatalError("Could not initialize file system");
     }
+
+    flowMeter.begin(FLOW_PIN, LED_PIN);
 
     // Explicitly set mode, ESP defaults to STA+AP
     WiFi.mode(WIFI_STA);

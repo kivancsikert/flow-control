@@ -45,7 +45,10 @@ protected:
         auto now = system_clock::now();
         auto elapsed = duration_cast<milliseconds>(now - lastMeasurement);
         lastMeasurement = now;
-        Serial.printf("Elapsed %d ms\n", (int) elapsed.count());
+        // TODO Contribute to FlowMeter (otherwise it will result in totals be NaN)
+        if (elapsed.count() == 0) {
+            return;
+        }
         meter->tick(elapsed.count());
 
         double flowRate = meter->getCurrentFlowrate();
@@ -57,7 +60,14 @@ protected:
                     (long) duration_cast<seconds>(timeSinceLastFlow).count(),
                     (long) duration_cast<seconds>(SLEEP_PERIOD).count());
                 Serial.flush();
+
+                // Disable interrupt to avoid crashing on wakeup
+                // TODO Contribute a stop() method to FlowMeter
+                detachInterrupt(digitalPinToInterrupt(flowPin));
+
+                // Turn off LED
                 digitalWrite(ledPin, LOW);
+
                 // Go to deep sleep until timeout or woken up by GPIO interrupt
                 esp_sleep_enable_timer_wakeup(duration_cast<microseconds>(SLEEP_PERIOD).count());
                 esp_sleep_enable_ext0_wakeup(flowPin, digitalRead(flowPin) == LOW);
