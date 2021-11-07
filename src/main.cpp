@@ -7,10 +7,13 @@
 #include <Wire.h>
 #include <chrono>
 
-#include <HttpUpdateHandler.hpp>
 #include <MqttHandler.hpp>
 #include <OtaHandler.hpp>
 #include <Telemetry.hpp>
+#include <commands/EchoCommand.hpp>
+#include <commands/FileCommands.hpp>
+#include <commands/HttpUpdateCommand.hpp>
+#include <commands/RestartCommand.hpp>
 
 #include "MeterHandler.hpp"
 #include "TelemetryHandler.hpp"
@@ -25,11 +28,15 @@ const gpio_num_t LED_PIN = GPIO_NUM_19;
 WiFiClient client;
 
 MqttHandler mqtt;
+commands::EchoCommand echoCommand(mqtt);
+commands::FileCommands fileCommands(mqtt);
+commands::HttpUpdateCommand httpUpdateCommand(mqtt, VERSION);
+commands::RestartCommand restartCommand(mqtt);
+
 MeterHandler flowMeter;
 TelemetryPublisher telemetryPublisher(mqtt, "events");
 TelemetryHandler telemetry(telemetryPublisher);
 OtaHandler otaHandler;
-HttpUpdateHandler httpUpdateHandler(mqtt, VERSION);
 
 void fatalError(String message) {
     Serial.println(message);
@@ -45,6 +52,8 @@ void setup() {
     if (!SPIFFS.begin()) {
         fatalError("Could not initialize file system");
     }
+
+
 
     flowMeter.begin(FLOW_PIN, LED_PIN);
 
@@ -93,7 +102,6 @@ void setup() {
             Serial.println("Cannot update config yet");
         });
 
-    httpUpdateHandler.begin();
     otaHandler.begin(hostname.c_str());
 
     telemetryPublisher.registerProvider(flowMeter);
