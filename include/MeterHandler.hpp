@@ -3,7 +3,7 @@
 #include <FlowMeter.h>
 #include <chrono>
 
-#include <Loopable.hpp>
+#include <Task.hpp>
 #include <Telemetry.hpp>
 
 using namespace std::chrono;
@@ -20,10 +20,11 @@ IRAM_ATTR void __meterHandlerCountCallback() {
 }
 
 class MeterHandler
-    : public TimedLoopable<void>,
+    : public Task,
       public TelemetryProvider {
 public:
-    MeterHandler() {
+    MeterHandler()
+        : Task("Flow meter") {
     }
 
     void begin(gpio_num_t flowPin, gpio_num_t ledPin) {
@@ -35,26 +36,24 @@ public:
         meter = new FlowMeter(digitalPinToInterrupt(flowPin), UncalibratedSensor, __meterHandlerCountCallback, RISING);
         __meterInstance = meter;
 
-        auto now = system_clock::now();
+        auto now = boot_clock::now();
         lastMeasurement = now;
         lastSeenFlow = now;
     }
 
 protected:
-    void timedLoop() override {
-        auto now = system_clock::now();
-        auto elapsed = duration_cast<milliseconds>(now - lastMeasurement);
-        lastMeasurement = now;
+    const Schedule loop(time_point<boot_clock> scheduledTime) override {
+        auto elapsed = duration_cast<milliseconds>(scheduledTime - lastMeasurement);
+        lastMeasurement = scheduledTime;
         // TODO Contribute to FlowMeter (otherwise it will result in totals be NaN)
         if (elapsed.count() == 0) {
-            return;
+            return sleepFor(milliseconds { 500 });
         }
         meter->tick(elapsed.count());
 
         double flowRate = meter->getCurrentFlowrate();
-        auto currentTime = system_clock::now();
         if (flowRate == 0.0) {
-            auto timeSinceLastFlow = currentTime - lastSeenFlow;
+            auto timeSinceLastFlow = scheduledTime - lastSeenFlow;
             if (timeSinceLastFlow > NO_FLOW_TIMEOUT) {
                 Serial.printf("No flow for %ld seconds, going to sleep for %ld seconds or until woken up by flow\n",
                     (long) duration_cast<seconds>(timeSinceLastFlow).count(),
@@ -74,15 +73,9 @@ protected:
                 esp_deep_sleep_start();
             }
         } else {
-            lastSeenFlow = currentTime;
+            lastSeenFlow = scheduledTime;
         }
-    }
-
-    milliseconds nextLoopAfter() const override {
-        return milliseconds { 500 };
-    }
-
-    void defaultValue() override {
+        return sleepFor(milliseconds { 500 });
     }
 
     void populateTelemetry(JsonObject& json) override {
@@ -98,6 +91,6 @@ private:
     gpio_num_t flowPin;
     gpio_num_t ledPin;
     FlowMeter* meter;
-    time_point<system_clock> lastMeasurement;
-    time_point<system_clock> lastSeenFlow;
+    time_point<boot_clock> lastMeasurement;
+    time_point<boot_clock> lastSeenFlow;
 };

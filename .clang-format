@@ -6,3 +6,6 @@ BreakBeforeTernaryOperators: true
 IndentCaseLabels: true
 SpaceAfterCStyleCast: true
 SpacesBeforeTrailingComments: 4
+CompactNamespaces: true
+FixNamespaceComments: true
+NamespaceIndentation: None
