@@ -1,4 +1,3 @@
-// include the library code:
 #include <Arduino.h>
 #include <ArduinoJson.hpp>
 #include <ESPmDNS.h>
