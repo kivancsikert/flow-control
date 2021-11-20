@@ -20,9 +20,16 @@ using namespace farmhub::client;
 const gpio_num_t FLOW_PIN = GPIO_NUM_33;
 const gpio_num_t LED_PIN = GPIO_NUM_19;
 
-class FlowMeterConfig : public FileConfiguration {
+class FlowMeterDeviceConfig : public Application::DeviceConfiguration {
 public:
-    FlowMeterConfig()
+    FlowMeterDeviceConfig()
+        : Application::DeviceConfiguration("flow-meter", "mk1") {
+    }
+};
+
+class FlowMeterAppConfig : public FileConfiguration {
+public:
+    FlowMeterAppConfig()
         : FileConfiguration("application", "/config.json") {
     }
 };
@@ -31,8 +38,8 @@ class FlowMeterApp
     : public Application {
 public:
     FlowMeterApp()
-        : Application("Flow meter", VERSION, appConfig, wifiProvider)
-        , telemetryPublisher(mqtt, "events")
+        : Application("Flow alert", VERSION, deviceConfig, appConfig, wifiProvider)
+        , telemetryPublisher(mqtt(), "events")
         , telemetryTask("Publish telemetry", seconds { 5 }, [&]() {
             telemetryPublisher.publish();
         }) {
@@ -47,7 +54,8 @@ protected:
     }
 
 private:
-    FlowMeterConfig appConfig;
+    FlowMeterDeviceConfig deviceConfig;
+    FlowMeterAppConfig appConfig;
     WiFiManagerProvider wifiProvider;
 
     WiFiClient client;
