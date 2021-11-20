@@ -39,7 +39,7 @@ class FlowMeterApp
 public:
     FlowMeterApp()
         : Application("Flow alert", VERSION, deviceConfig, appConfig, wifiProvider)
-        , telemetryPublisher(mqtt(), "events")
+        , telemetryPublisher(mqtt())
         , telemetryTask("Publish telemetry", seconds { 5 }, [&]() {
             telemetryPublisher.publish();
         }) {
