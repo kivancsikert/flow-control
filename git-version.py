@@ -1,3 +1,4 @@
+from pathlib import Path
 import subprocess
 
 template = """
@@ -12,4 +13,5 @@ version = subprocess.run(["git", "describe", "--tags", "--dirty"], stdout=subpro
 
 print("Firmware version: " + version)
 
+Path("include").mkdir(exist_ok=True)
 print(template.strip() % version, file=open("include/version.h", "w"))

@@ -9,9 +9,12 @@
 using namespace std::chrono;
 using namespace farmhub::client;
 
-// TODO Make these configurable
-const auto NO_FLOW_TIMEOUT = seconds { 10 };
-const auto SLEEP_PERIOD = minutes { 1 };
+namespace std { namespace chrono {
+
+bool convertToJson(const seconds& src, JsonVariant dst);
+void convertFromJson(JsonVariantConst src, seconds& dst);
+
+}}    // namespace std::chrono
 
 FlowMeter* __meterInstance;
 
@@ -19,12 +22,24 @@ IRAM_ATTR void __meterHandlerCountCallback() {
     __meterInstance->count();
 }
 
+class MeterConfig : public FileConfiguration {
+public:
+    MeterConfig()
+        : FileConfiguration("application", "/config.json") {
+    }
+
+    Property<seconds> updateFrequency { serializer, "updateFrequency", minutes { 1 } };
+    Property<seconds> noFlowTimeout { serializer, "noFlowTimeout", minutes { 10 } };
+    Property<seconds> sleepPeriod { serializer, "sleepPeriod", hours { 1 } };
+};
+
 class MeterHandler
     : public Task,
       public TelemetryProvider {
 public:
-    MeterHandler()
-        : Task("Flow meter") {
+    MeterHandler(MeterConfig& config)
+        : Task("Flow meter")
+        , config(config) {
     }
 
     void begin(gpio_num_t flowPin, gpio_num_t ledPin) {
@@ -43,21 +58,21 @@ public:
 
 protected:
     const Schedule loop(time_point<boot_clock> scheduledTime) override {
-        auto elapsed = duration_cast<milliseconds>(scheduledTime - lastMeasurement);
+        auto elapsed = duration_cast<seconds>(scheduledTime - lastMeasurement);
         lastMeasurement = scheduledTime;
         // TODO Contribute to FlowMeter (otherwise it will result in totals be NaN)
         if (elapsed.count() == 0) {
-            return sleepFor(milliseconds { 500 });
+            return sleepFor(config.updateFrequency.get());
         }
         meter->tick(elapsed.count());
 
         double flowRate = meter->getCurrentFlowrate();
-        if (flowRate == 0.0) {
+        if (flowRate == 0.0 && config.noFlowTimeout.get() > seconds::zero() && config.sleepPeriod.get() > seconds::zero()) {
             auto timeSinceLastFlow = scheduledTime - lastSeenFlow;
-            if (timeSinceLastFlow > NO_FLOW_TIMEOUT) {
+            if (timeSinceLastFlow > config.noFlowTimeout.get()) {
                 Serial.printf("No flow for %ld seconds, going to sleep for %ld seconds or until woken up by flow\n",
                     (long) duration_cast<seconds>(timeSinceLastFlow).count(),
-                    (long) duration_cast<seconds>(SLEEP_PERIOD).count());
+                    (long) duration_cast<seconds>(config.sleepPeriod.get()).count());
                 Serial.flush();
 
                 // Disable interrupt to avoid crashing on wakeup
@@ -68,14 +83,14 @@ protected:
                 digitalWrite(ledPin, LOW);
 
                 // Go to deep sleep until timeout or woken up by GPIO interrupt
-                esp_sleep_enable_timer_wakeup(duration_cast<microseconds>(SLEEP_PERIOD).count());
+                esp_sleep_enable_timer_wakeup(duration_cast<microseconds>(config.sleepPeriod.get()).count());
                 esp_sleep_enable_ext0_wakeup(flowPin, digitalRead(flowPin) == LOW);
                 esp_deep_sleep_start();
             }
         } else {
             lastSeenFlow = scheduledTime;
         }
-        return sleepFor(milliseconds { 500 });
+            return sleepFor(config.updateFrequency.get());
     }
 
     void populateTelemetry(JsonObject& json) override {
@@ -88,9 +103,22 @@ protected:
     }
 
 private:
+    MeterConfig& config;
     gpio_num_t flowPin;
     gpio_num_t ledPin;
     FlowMeter* meter;
     time_point<boot_clock> lastMeasurement;
     time_point<boot_clock> lastSeenFlow;
 };
+
+namespace std { namespace chrono {
+
+bool convertToJson(const seconds& src, JsonVariant dst) {
+    return dst.set(src.count());
+}
+
+void convertFromJson(JsonVariantConst src, seconds& dst) {
+    dst = seconds { src.as<uint64_t>() };
+}
+
+}}    // namespace std::chrono

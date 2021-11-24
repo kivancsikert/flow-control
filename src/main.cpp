@@ -23,26 +23,35 @@ const gpio_num_t LED_PIN = GPIO_NUM_19;
 class FlowMeterDeviceConfig : public Application::DeviceConfiguration {
 public:
     FlowMeterDeviceConfig()
-        : Application::DeviceConfiguration("flow-meter", "mk1") {
+        : Application::DeviceConfiguration("flow-alert", "mk1") {
     }
 };
 
-class FlowMeterAppConfig : public FileConfiguration {
+class TelemetryTask
+    : public Task {
 public:
-    FlowMeterAppConfig()
-        : FileConfiguration("application", "/config.json") {
+    TelemetryTask(MeterConfig& config, TelemetryPublisher& publisher)
+        : Task("Telemetry")
+        , config(config)
+        , publisher(publisher) {
     }
+
+protected:
+    const Schedule loop(time_point<boot_clock> scheduledTime) override {
+        publisher.publish();
+        return sleepFor(config.updateFrequency.get());
+    }
+
+private:
+    MeterConfig& config;
+    TelemetryPublisher& publisher;
 };
 
 class FlowMeterApp
     : public Application {
 public:
     FlowMeterApp()
-        : Application("Flow alert", VERSION, deviceConfig, appConfig, wifiProvider)
-        , telemetryPublisher(mqtt())
-        , telemetryTask("Publish telemetry", seconds { 5 }, [&]() {
-            telemetryPublisher.publish();
-        }) {
+        : Application("Flow alert", VERSION, deviceConfig, config, wifiProvider) {
         addTask(flowMeter);
         addTask(telemetryTask);
         telemetryPublisher.registerProvider(flowMeter);
@@ -55,13 +64,13 @@ protected:
 
 private:
     FlowMeterDeviceConfig deviceConfig;
-    FlowMeterAppConfig appConfig;
     WiFiManagerProvider wifiProvider;
-
     WiFiClient client;
-    MeterHandler flowMeter;
-    TelemetryPublisher telemetryPublisher;
-    IntervalTask telemetryTask;
+
+    MeterConfig config;
+    MeterHandler flowMeter { config };
+    TelemetryPublisher telemetryPublisher { mqtt() };
+    TelemetryTask telemetryTask { config, telemetryPublisher };
 };
 
 FlowMeterApp app;
