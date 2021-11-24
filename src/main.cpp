@@ -23,7 +23,7 @@ const gpio_num_t LED_PIN = GPIO_NUM_19;
 class FlowMeterDeviceConfig : public Application::DeviceConfiguration {
 public:
     FlowMeterDeviceConfig()
-        : Application::DeviceConfiguration("flow-meter", "mk1") {
+        : Application::DeviceConfiguration("flow-alert", "mk1") {
     }
 };
 
