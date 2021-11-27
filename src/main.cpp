@@ -14,7 +14,6 @@
 #include "MeterHandler.hpp"
 #include "version.h"
 
-using namespace std::chrono;
 using namespace farmhub::client;
 
 const gpio_num_t FLOW_PIN = GPIO_NUM_33;
