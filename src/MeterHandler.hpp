@@ -9,13 +9,6 @@
 using namespace std::chrono;
 using namespace farmhub::client;
 
-namespace std { namespace chrono {
-
-bool convertToJson(const seconds& src, JsonVariant dst);
-void convertFromJson(JsonVariantConst src, seconds& dst);
-
-}}    // namespace std::chrono
-
 FlowMeter* __meterInstance;
 
 IRAM_ATTR void __meterHandlerCountCallback() {
@@ -112,15 +105,3 @@ private:
     time_point<boot_clock> lastMeasurement;
     time_point<boot_clock> lastSeenFlow;
 };
-
-namespace std { namespace chrono {
-
-bool convertToJson(const seconds& src, JsonVariant dst) {
-    return dst.set(src.count());
-}
-
-void convertFromJson(JsonVariantConst src, seconds& dst) {
-    dst = seconds { src.as<uint64_t>() };
-}
-
-}}    // namespace std::chrono
