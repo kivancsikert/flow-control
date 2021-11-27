@@ -22,7 +22,8 @@ IRAM_ATTR void __meterHandlerCountCallback() {
     __meterInstance->count();
 }
 
-class MeterConfig : public FileConfiguration {
+class MeterConfig
+    : public FileConfiguration {
 public:
     MeterConfig()
         : FileConfiguration("application", "/config.json") {
@@ -90,7 +91,7 @@ protected:
         } else {
             lastSeenFlow = scheduledTime;
         }
-            return sleepFor(config.updateFrequency.get());
+        return sleepFor(config.updateFrequency.get());
     }
 
     void populateTelemetry(JsonObject& json) override {
