@@ -27,33 +27,13 @@ public:
     }
 };
 
-class TelemetryTask
-    : public Task {
-public:
-    TelemetryTask(MeterConfig& config, TelemetryPublisher& publisher)
-        : Task("Telemetry")
-        , config(config)
-        , publisher(publisher) {
-    }
-
-protected:
-    const Schedule loop(const Timing& timing) override {
-        publisher.publish();
-        return sleepFor(config.updateFrequency.get());
-    }
-
-private:
-    MeterConfig& config;
-    TelemetryPublisher& publisher;
-};
-
 class FlowMeterApp
     : public Application {
 public:
     FlowMeterApp()
         : Application("Flow alert", VERSION, deviceConfig, config, wifiProvider) {
         addTask(flowMeter);
-        addTask(telemetryTask);
+        addTask(telemetryPublisher);
         telemetryPublisher.registerProvider(flowMeter);
     }
 
@@ -69,8 +49,7 @@ private:
 
     MeterConfig config;
     MeterHandler flowMeter { config };
-    TelemetryPublisher telemetryPublisher { mqtt() };
-    TelemetryTask telemetryTask { config, telemetryPublisher };
+    TelemetryPublisher telemetryPublisher { config.publishInterval, mqtt() };
 };
 
 FlowMeterApp app;
