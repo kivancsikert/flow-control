@@ -29,7 +29,7 @@ public:
         : FileConfiguration("application", "/config.json") {
     }
 
-    Property<seconds> updateFrequency { serializer, "updateFrequency", minutes { 1 } };
+    Property<seconds> publishInterval { serializer, "publishInterval", minutes { 1 } };
     Property<seconds> noFlowTimeout { serializer, "noFlowTimeout", minutes { 10 } };
     Property<seconds> sleepPeriod { serializer, "sleepPeriod", hours { 1 } };
 };
@@ -58,18 +58,19 @@ public:
     }
 
 protected:
-    const Schedule loop(time_point<boot_clock> scheduledTime) override {
-        auto elapsed = duration_cast<seconds>(scheduledTime - lastMeasurement);
-        lastMeasurement = scheduledTime;
+    const Schedule loop(const Timing& timing) override {
+        auto now = boot_clock::now();
+        auto elapsed = duration_cast<seconds>(now - lastMeasurement);
+        lastMeasurement = now;
         // TODO Contribute to FlowMeter (otherwise it will result in totals be NaN)
         if (elapsed.count() == 0) {
-            return sleepFor(config.updateFrequency.get());
+            return sleepFor(config.publishInterval.get());
         }
         meter->tick(elapsed.count());
 
         double flowRate = meter->getCurrentFlowrate();
         if (flowRate == 0.0 && config.noFlowTimeout.get() > seconds::zero() && config.sleepPeriod.get() > seconds::zero()) {
-            auto timeSinceLastFlow = scheduledTime - lastSeenFlow;
+            auto timeSinceLastFlow = now - lastSeenFlow;
             if (timeSinceLastFlow > config.noFlowTimeout.get()) {
                 Serial.printf("No flow for %ld seconds, going to sleep for %ld seconds or until woken up by flow\n",
                     (long) duration_cast<seconds>(timeSinceLastFlow).count(),
@@ -89,9 +90,9 @@ protected:
                 esp_deep_sleep_start();
             }
         } else {
-            lastSeenFlow = scheduledTime;
+            lastSeenFlow = now;
         }
-        return sleepFor(config.updateFrequency.get());
+        return sleepFor(config.publishInterval.get());
     }
 
     void populateTelemetry(JsonObject& json) override {
