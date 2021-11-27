@@ -37,7 +37,7 @@ public:
     }
 
 protected:
-    const Schedule loop(time_point<boot_clock> scheduledTime) override {
+    const Schedule loop(const Timing& timing) override {
         publisher.publish();
         return sleepFor(config.updateFrequency.get());
     }
@@ -76,7 +76,7 @@ private:
 FlowMeterApp app;
 
 void setup() {
-    app.begin("flow-alert");
+    app.begin();
 }
 
 void loop() {
