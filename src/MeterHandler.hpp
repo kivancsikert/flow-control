@@ -29,7 +29,7 @@ public:
         : FileConfiguration("application", "/config.json") {
     }
 
-    Property<seconds> updateFrequency { serializer, "updateFrequency", minutes { 1 } };
+    Property<seconds> publishInterval { serializer, "publishInterval", minutes { 1 } };
     Property<seconds> noFlowTimeout { serializer, "noFlowTimeout", minutes { 10 } };
     Property<seconds> sleepPeriod { serializer, "sleepPeriod", hours { 1 } };
 };
@@ -64,7 +64,7 @@ protected:
         lastMeasurement = now;
         // TODO Contribute to FlowMeter (otherwise it will result in totals be NaN)
         if (elapsed.count() == 0) {
-            return sleepFor(config.updateFrequency.get());
+            return sleepFor(config.publishInterval.get());
         }
         meter->tick(elapsed.count());
 
@@ -92,7 +92,7 @@ protected:
         } else {
             lastSeenFlow = now;
         }
-        return sleepFor(config.updateFrequency.get());
+        return sleepFor(config.publishInterval.get());
     }
 
     void populateTelemetry(JsonObject& json) override {
