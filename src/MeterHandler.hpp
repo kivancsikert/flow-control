@@ -89,12 +89,7 @@ protected:
     }
 
     void populateTelemetry(JsonObject& json) override {
-        json["model"] = "flow-alert@mk1";
-        json["description"] = "Flow alerter";
-        json["flowRate"] = meter->getCurrentFlowrate();
         json["volume"] = meter->getCurrentVolume();
-        json["totalFlowRate"] = meter->getTotalFlowrate();
-        json["totalVolume"] = meter->getTotalVolume();
     }
 
 private:
