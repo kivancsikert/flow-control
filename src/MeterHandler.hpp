@@ -53,7 +53,7 @@ public:
 protected:
     const Schedule loop(const Timing& timing) override {
         auto now = boot_clock::now();
-        auto elapsed = duration_cast<seconds>(now - lastMeasurement);
+        milliseconds elapsed = duration_cast<milliseconds>(now - lastMeasurement);
         lastMeasurement = now;
         // TODO Contribute to FlowMeter (otherwise it will result in totals be NaN)
         if (elapsed.count() == 0) {
@@ -89,12 +89,7 @@ protected:
     }
 
     void populateTelemetry(JsonObject& json) override {
-        json["model"] = "flow-alert@mk1";
-        json["description"] = "Flow alerter";
-        json["flowRate"] = meter->getCurrentFlowrate();
         json["volume"] = meter->getCurrentVolume();
-        json["totalFlowRate"] = meter->getTotalFlowrate();
-        json["totalVolume"] = meter->getTotalVolume();
     }
 
 private:
