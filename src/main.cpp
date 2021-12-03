@@ -44,7 +44,7 @@ private:
     BlockingWiFiManagerProvider wifiProvider;
     WiFiClient client;
 
-    MeterConfig config;
+    MeterHandler::Config config;
     MeterHandler flowMeter { tasks(), config };
     TelemetryPublisher telemetryPublisher { tasks(), config.publishInterval, mqtt() };
 };
