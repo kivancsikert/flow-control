@@ -22,17 +22,17 @@ public:
         : FileConfiguration("application", "/config.json") {
     }
 
-    Property<seconds> publishInterval { serializer, "publishInterval", minutes { 1 } };
-    Property<seconds> noFlowTimeout { serializer, "noFlowTimeout", minutes { 10 } };
-    Property<seconds> sleepPeriod { serializer, "sleepPeriod", hours { 1 } };
+    Property<seconds> publishInterval { this, "publishInterval", minutes { 1 } };
+    Property<seconds> noFlowTimeout { this, "noFlowTimeout", minutes { 10 } };
+    Property<seconds> sleepPeriod { this, "sleepPeriod", hours { 1 } };
 };
 
 class MeterHandler
-    : public Task,
+    : public BaseTask,
       public TelemetryProvider {
 public:
-    MeterHandler(MeterConfig& config)
-        : Task("Flow meter")
+    MeterHandler(TaskContainer& tasks, MeterConfig& config)
+        : BaseTask(tasks, "Flow meter")
         , config(config) {
     }
 

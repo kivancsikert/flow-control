@@ -31,8 +31,6 @@ class FlowMeterApp
 public:
     FlowMeterApp()
         : Application("Flow alert", VERSION, deviceConfig, config, wifiProvider) {
-        addTask(flowMeter);
-        addTask(telemetryPublisher);
         telemetryPublisher.registerProvider(flowMeter);
     }
 
@@ -43,12 +41,12 @@ protected:
 
 private:
     FlowMeterDeviceConfig deviceConfig;
-    WiFiManagerProvider wifiProvider;
+    BlockingWiFiManagerProvider wifiProvider;
     WiFiClient client;
 
     MeterConfig config;
-    MeterHandler flowMeter { config };
-    TelemetryPublisher telemetryPublisher { config.publishInterval, mqtt() };
+    MeterHandler flowMeter { tasks(), config };
+    TelemetryPublisher telemetryPublisher { tasks(), config.publishInterval, mqtt() };
 };
 
 FlowMeterApp app;
