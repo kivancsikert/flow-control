@@ -12,12 +12,15 @@
 #include <wifi/WiFiManagerProvider.hpp>
 
 #include "MeterHandler.hpp"
+#include "ValveHandler.hpp"
 #include "version.h"
 
 using namespace farmhub::client;
 
 const gpio_num_t FLOW_PIN = GPIO_NUM_33;
 const gpio_num_t LED_PIN = GPIO_NUM_19;
+const gpio_num_t VALVE_OPEN_PIN = GPIO_NUM_22;
+const gpio_num_t VALVE_CLOSE_PIN = GPIO_NUM_25;
 
 class FlowMeterDeviceConfig : public Application::DeviceConfiguration {
 public:
@@ -37,6 +40,7 @@ public:
 protected:
     void beginApp() override {
         flowMeter.begin(FLOW_PIN, LED_PIN);
+        valve.begin(VALVE_OPEN_PIN, VALVE_CLOSE_PIN);
     }
 
 private:
@@ -46,6 +50,7 @@ private:
 
     MeterHandler::Config config;
     MeterHandler flowMeter { tasks(), config };
+    ValveHandler valve { tasks() };
     TelemetryPublisher telemetryPublisher { tasks(), config.publishInterval, mqtt() };
 };
 
