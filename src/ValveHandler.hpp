@@ -38,6 +38,7 @@ public:
 
 private:
     void setState(State state) {
+        this->state = state;
         switch (state) {
             case State::OPEN:
                 Serial.println("Opening");
