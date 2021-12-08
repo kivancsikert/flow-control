@@ -1,9 +1,12 @@
 #pragma once
 
+#include <Telemetry.hpp>
+
 using namespace std::chrono;
 using namespace farmhub::client;
 
-class ValveHandler {
+class ValveHandler
+    : public TelemetryProvider {
 public:
     enum class State {
         CLOSED,
@@ -27,6 +30,10 @@ public:
 
         // Close on startup
         setState(State::CLOSED);
+    }
+
+    void populateTelemetry(JsonObject& json) override {
+        json["valve"] = state;
     }
 
 private:

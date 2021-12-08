@@ -35,6 +35,7 @@ public:
     FlowMeterApp()
         : Application("Flow alert", VERSION, deviceConfig, config, wifiProvider) {
         telemetryPublisher.registerProvider(flowMeter);
+        telemetryPublisher.registerProvider(valve);
     }
 
 protected:
