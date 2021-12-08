@@ -50,7 +50,7 @@ private:
 
     MeterHandler::Config config;
     MeterHandler flowMeter { tasks(), config };
-    ValveHandler valve { tasks() };
+    ValveHandler valve { mqtt() };
     TelemetryPublisher telemetryPublisher { tasks(), config.publishInterval, mqtt() };
 };
 

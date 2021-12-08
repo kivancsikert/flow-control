@@ -1,15 +1,22 @@
 #pragma once
 
-#include <Task.hpp>
-
 using namespace std::chrono;
 using namespace farmhub::client;
 
-class ValveHandler
-    : public BaseTask {
+class ValveHandler {
 public:
-    ValveHandler(TaskContainer& tasks)
-        : BaseTask(tasks, "ValveHandler") {
+    enum class State {
+        CLOSED,
+        OPEN
+    };
+
+    ValveHandler(MqttHandler& mqtt) {
+        mqtt.registerCommand("set-valve", [&](const JsonObject& request, JsonObject& response) {
+            State state = request["state"].as<State>();
+            Serial.println("Controlling valve to " + String(static_cast<int>(state)));
+            setState(state);
+            response["state"] = state;
+        });
     }
 
     void begin(gpio_num_t openPin, gpio_num_t closePin) {
@@ -17,29 +24,38 @@ public:
         this->closePin = closePin;
         pinMode(openPin, OUTPUT);
         pinMode(closePin, OUTPUT);
+
+        // Close on startup
+        setState(State::CLOSED);
     }
 
-    const Schedule loop(const Timing& timing) override {
-        if (!open) {
-            Serial.println("Opening");
-            digitalWrite(openPin, LOW);
-            digitalWrite(closePin, HIGH);
-            open = true;
-        } else {
-            Serial.println("Closing");
-            digitalWrite(openPin, HIGH);
-            digitalWrite(closePin, LOW);
-            open = false;
+private:
+    void setState(State state) {
+        switch (state) {
+            case State::OPEN:
+                Serial.println("Opening");
+                digitalWrite(openPin, LOW);
+                digitalWrite(closePin, HIGH);
+                break;
+            case State::CLOSED:
+                Serial.println("Closing");
+                digitalWrite(openPin, HIGH);
+                digitalWrite(closePin, LOW);
+                break;
         }
         delay(250);
         digitalWrite(openPin, HIGH);
         digitalWrite(closePin, HIGH);
-        return sleepFor(seconds { 5 });
     }
 
-private:
     gpio_num_t openPin;
     gpio_num_t closePin;
-
-    bool open = true;
+    State state;
 };
+
+bool convertToJson(const ValveHandler::State& src, JsonVariant dst) {
+    return dst.set(static_cast<int>(src));
+}
+void convertFromJson(JsonVariantConst src, ValveHandler::State& dst) {
+    dst = static_cast<ValveHandler::State>(src.as<int>());
+}
