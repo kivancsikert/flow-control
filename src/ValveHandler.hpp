@@ -5,6 +5,9 @@
 using namespace std::chrono;
 using namespace farmhub::client;
 
+RTC_DATA_ATTR
+int8_t valveHandlerStoredState;
+
 class ValveHandler
     : public TelemetryProvider {
 public:
@@ -27,9 +30,19 @@ public:
         this->closePin = closePin;
         pinMode(openPin, OUTPUT);
         pinMode(closePin, OUTPUT);
+        digitalWrite(openPin, HIGH);
+        digitalWrite(closePin, HIGH);
 
-        // Close on startup
-        setState(State::CLOSED);
+        // RTC memory is reset to 0 upon power-up
+        if (valveHandlerStoredState == 0) {
+            Serial.println("Initializing for the first time");
+            setState(State::CLOSED);
+        } else {
+            Serial.println("Initializing after waking from sleep with state = " + String(valveHandlerStoredState));
+            state = valveHandlerStoredState == 1
+                ? State::OPEN
+                : State::CLOSED;
+        }
     }
 
     void populateTelemetry(JsonObject& json) override {
@@ -42,11 +55,13 @@ private:
         switch (state) {
             case State::OPEN:
                 Serial.println("Opening");
+                valveHandlerStoredState = 1;
                 digitalWrite(openPin, LOW);
                 digitalWrite(closePin, HIGH);
                 break;
             case State::CLOSED:
                 Serial.println("Closing");
+                valveHandlerStoredState = -1;
                 digitalWrite(openPin, HIGH);
                 digitalWrite(closePin, LOW);
                 break;
