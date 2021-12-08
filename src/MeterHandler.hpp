@@ -31,7 +31,7 @@ public:
         Property<seconds> sleepPeriod { this, "sleepPeriod", hours { 1 } };
     };
 
-    MeterHandler(TaskContainer& tasks, Config& config)
+    MeterHandler(TaskContainer& tasks, const Config& config)
         : BaseTask(tasks, "Flow meter")
         , config(config) {
     }
@@ -93,7 +93,7 @@ protected:
     }
 
 private:
-    Config& config;
+    const Config& config;
     gpio_num_t flowPin;
     gpio_num_t ledPin;
     FlowMeter* meter;
