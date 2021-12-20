@@ -25,7 +25,7 @@ const gpio_num_t VALVE_CLOSE_PIN = GPIO_NUM_25;
 class FlowMeterDeviceConfig : public Application::DeviceConfiguration {
 public:
     FlowMeterDeviceConfig()
-        : Application::DeviceConfiguration("flow-alert", "mk1") {
+        : Application::DeviceConfiguration("flow-control", "mk2") {
     }
 };
 
@@ -33,7 +33,7 @@ class FlowMeterApp
     : public Application {
 public:
     FlowMeterApp()
-        : Application("Flow alert", VERSION, deviceConfig, config, wifiProvider) {
+        : Application("Flow control", VERSION, deviceConfig, config, wifiProvider) {
         telemetryPublisher.registerProvider(flowMeter);
         telemetryPublisher.registerProvider(valve);
     }
