@@ -15,24 +15,24 @@ IRAM_ATTR void __meterHandlerCountCallback() {
     __meterInstance->count();
 }
 
-class MeterConfig
-    : public FileConfiguration {
-public:
-    MeterConfig()
-        : FileConfiguration("application", "/config.json") {
-    }
-
-    Property<seconds> publishInterval { serializer, "publishInterval", minutes { 1 } };
-    Property<seconds> noFlowTimeout { serializer, "noFlowTimeout", minutes { 10 } };
-    Property<seconds> sleepPeriod { serializer, "sleepPeriod", hours { 1 } };
-};
-
 class MeterHandler
-    : public Task,
+    : public BaseTask,
       public TelemetryProvider {
 public:
-    MeterHandler(MeterConfig& config)
-        : Task("Flow meter")
+    class Config
+        : public FileConfiguration {
+    public:
+        Config()
+            : FileConfiguration("application", "/config.json") {
+        }
+
+        Property<seconds> publishInterval { this, "publishInterval", minutes { 1 } };
+        Property<seconds> noFlowTimeout { this, "noFlowTimeout", minutes { 10 } };
+        Property<seconds> sleepPeriod { this, "sleepPeriod", hours { 1 } };
+    };
+
+    MeterHandler(TaskContainer& tasks, const Config& config)
+        : BaseTask(tasks, "Flow meter")
         , config(config) {
     }
 
@@ -93,7 +93,7 @@ protected:
     }
 
 private:
-    MeterConfig& config;
+    const Config& config;
     gpio_num_t flowPin;
     gpio_num_t ledPin;
     FlowMeter* meter;
