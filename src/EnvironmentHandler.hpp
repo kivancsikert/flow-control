@@ -22,7 +22,7 @@ protected:
     void populateTelemetry(JsonObject& json) override {
         auto temp = dht->readTemperature();
         auto humidity = dht->readHumidity();
-        Serial.printf("Temperature: %f, humidity: %f%\n", temp, humidity);
+        Serial.printf("Temperature: %f, humidity: %f\n", temp, humidity);
         json["temperature"] = temp;
         json["humidity"] = humidity;
     }
