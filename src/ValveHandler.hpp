@@ -49,7 +49,10 @@ public:
         json["valve"] = state;
     }
 
-private:
+    State getState() {
+        return state;
+    }
+
     void setState(State state) {
         this->state = state;
         switch (state) {
@@ -71,6 +74,7 @@ private:
         digitalWrite(closePin, HIGH);
     }
 
+private:
     gpio_num_t openPin;
     gpio_num_t closePin;
     State state;
