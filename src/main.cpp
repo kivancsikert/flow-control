@@ -55,10 +55,10 @@ private:
     WiFiClient client;
 
     MeterHandler::Config config;
-    MeterHandler flowMeter { tasks(), config };
-    ValveHandler valve { mqtt() };
+    MeterHandler flowMeter { tasks, config };
+    ValveHandler valve { mqtt };
     EnvironmentHandler environment {};
-    TelemetryPublisher telemetryPublisher { tasks(), config.publishInterval, mqtt() };
+    TelemetryPublisher telemetryPublisher { tasks, config.publishInterval, mqtt };
 };
 
 FlowMeterApp app;
