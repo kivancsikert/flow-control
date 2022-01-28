@@ -32,6 +32,16 @@ public:
     }
 };
 
+class FlowMeterAppConfig : public Application::AppConfiguration {
+public:
+    FlowMeterAppConfig()
+        : Application::AppConfiguration() {
+    }
+
+    MeterHandler::Config meter { this };
+    Property<seconds> sleepPeriod { this, "sleepPeriod", seconds::zero() };
+};
+
 class FlowMeterApp
     : public Application {
 public:
@@ -40,25 +50,37 @@ public:
         telemetryPublisher.registerProvider(flowMeter);
         telemetryPublisher.registerProvider(valve);
         telemetryPublisher.registerProvider(environment);
+
+        // Turn led on when we start
+        pinMode(LED_PIN, OUTPUT);
+        digitalWrite(LED_PIN, HIGH);
     }
 
 protected:
     void beginApp() override {
-        flowMeter.begin(FLOW_PIN, LED_PIN);
+        flowMeter.begin(FLOW_PIN);
         valve.begin(VALVE_OPEN_PIN, VALVE_CLOSE_PIN);
         environment.begin(DHT_PIN, DHT_TYPE);
     }
 
 private:
+    void onSleep() {
+        if (config.sleepPeriod.get() > seconds::zero()) {
+            // Turn off led when we go to sleep
+            digitalWrite(LED_PIN, LOW);
+
+            deepSleepFor(config.sleepPeriod.get());
+        }
+    }
+
     FlowMeterDeviceConfig deviceConfig;
     BlockingWiFiManagerProvider wifiProvider;
     WiFiClient client;
 
-    MeterHandler::Config config;
-    MeterHandler flowMeter { tasks(), config };
-    ValveHandler valve { mqtt() };
+    FlowMeterAppConfig config;
+    MeterHandler flowMeter { tasks, config.meter, std::bind(&FlowMeterApp::onSleep, this) };
+    ValveHandler valve { mqtt };
     EnvironmentHandler environment {};
-    TelemetryPublisher telemetryPublisher { tasks(), config.publishInterval, mqtt() };
 };
 
 FlowMeterApp app;

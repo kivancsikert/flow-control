@@ -20,27 +20,24 @@ class MeterHandler
       public TelemetryProvider {
 public:
     class Config
-        : public FileConfiguration {
+        : public NamedConfigurationSection {
     public:
-        Config()
-            : FileConfiguration("application", "/config.json") {
+        Config(ConfigurationSection* parent)
+            : NamedConfigurationSection(parent, "meter") {
         }
 
-        Property<seconds> publishInterval { this, "publishInterval", minutes { 1 } };
+        Property<seconds> measurementFrequency { this, "measurementFrequency", seconds { 1 } };
         Property<seconds> noFlowTimeout { this, "noFlowTimeout", minutes { 10 } };
-        Property<seconds> sleepPeriod { this, "sleepPeriod", hours { 1 } };
     };
 
-    MeterHandler(TaskContainer& tasks, const Config& config)
+    MeterHandler(TaskContainer& tasks, const Config& config, std::function<void()> onSleep)
         : BaseTask(tasks, "Flow meter")
-        , config(config) {
+        , config(config)
+        , onSleep(onSleep) {
     }
 
-    void begin(gpio_num_t flowPin, gpio_num_t ledPin) {
-        pinMode(ledPin, OUTPUT);
-        digitalWrite(ledPin, HIGH);
+    void begin(gpio_num_t flowPin) {
         this->flowPin = flowPin;
-        this->ledPin = ledPin;
 
         meter = new FlowMeter(digitalPinToInterrupt(flowPin), UncalibratedSensor, __meterHandlerCountCallback, RISING);
         __meterInstance = meter;
@@ -57,35 +54,25 @@ protected:
         lastMeasurement = now;
         // TODO Contribute to FlowMeter (otherwise it will result in totals be NaN)
         if (elapsed.count() == 0) {
-            return sleepFor(config.publishInterval.get());
+            return sleepFor(config.measurementFrequency.get());
         }
         meter->tick(elapsed.count());
 
         double flowRate = meter->getCurrentFlowrate();
-        if (flowRate == 0.0 && config.noFlowTimeout.get() > seconds::zero() && config.sleepPeriod.get() > seconds::zero()) {
+        if (flowRate == 0.0 && config.noFlowTimeout.get() > seconds::zero()) {
             auto timeSinceLastFlow = now - lastSeenFlow;
             if (timeSinceLastFlow > config.noFlowTimeout.get()) {
-                Serial.printf("No flow for %ld seconds, going to sleep for %ld seconds or until woken up by flow\n",
-                    (long) duration_cast<seconds>(timeSinceLastFlow).count(),
-                    (long) duration_cast<seconds>(config.sleepPeriod.get()).count());
-                Serial.flush();
+                Serial.printf("No flow for %ld seconds\n",
+                    (long) duration_cast<seconds>(timeSinceLastFlow).count());
 
-                // Disable interrupt to avoid crashing on wakeup
-                // TODO Contribute a stop() method to FlowMeter
-                detachInterrupt(digitalPinToInterrupt(flowPin));
-
-                // Turn off LED
-                digitalWrite(ledPin, LOW);
-
-                // Go to deep sleep until timeout or woken up by GPIO interrupt
-                esp_sleep_enable_timer_wakeup(duration_cast<microseconds>(config.sleepPeriod.get()).count());
+                // Wake up on flow change
                 esp_sleep_enable_ext0_wakeup(flowPin, digitalRead(flowPin) == LOW);
-                esp_deep_sleep_start();
+                onSleep();
             }
         } else {
             lastSeenFlow = now;
         }
-        return sleepFor(config.publishInterval.get());
+        return sleepFor(config.measurementFrequency.get());
     }
 
     void populateTelemetry(JsonObject& json) override {
@@ -94,8 +81,8 @@ protected:
 
 private:
     const Config& config;
+    std::function<void()> onSleep;
     gpio_num_t flowPin;
-    gpio_num_t ledPin;
     FlowMeter* meter;
     time_point<boot_clock> lastMeasurement;
     time_point<boot_clock> lastSeenFlow;
