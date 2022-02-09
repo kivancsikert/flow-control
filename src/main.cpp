@@ -13,17 +13,21 @@
 
 #include "EnvironmentHandler.hpp"
 #include "MeterHandler.hpp"
+#include "ModeHandler.hpp"
 #include "ValveHandler.hpp"
 #include "version.h"
 
 using namespace farmhub::client;
 
-const gpio_num_t FLOW_PIN = GPIO_NUM_33;
+const gpio_num_t FLOW_PIN = GPIO_NUM_18;
 const gpio_num_t DHT_PIN = GPIO_NUM_26;
 const uint8_t DHT_TYPE = DHT11;
 const gpio_num_t LED_PIN = GPIO_NUM_19;
 const gpio_num_t VALVE_OPEN_PIN = GPIO_NUM_22;
 const gpio_num_t VALVE_CLOSE_PIN = GPIO_NUM_25;
+const gpio_num_t MODE_OPEN_PIN = GPIO_NUM_5;
+const gpio_num_t MODE_AUTO_PIN = GPIO_NUM_23;
+const gpio_num_t MODE_CLOSE_PIN = GPIO_NUM_19;
 
 class FlowMeterDeviceConfig : public Application::DeviceConfiguration {
 public:
@@ -49,6 +53,7 @@ public:
         : Application("Flow control", VERSION, deviceConfig, config, wifiProvider) {
         telemetryPublisher.registerProvider(flowMeter);
         telemetryPublisher.registerProvider(valve);
+        telemetryPublisher.registerProvider(mode);
         telemetryPublisher.registerProvider(environment);
 
         // Turn led on when we start
@@ -60,6 +65,7 @@ protected:
     void beginApp() override {
         flowMeter.begin(FLOW_PIN);
         valve.begin(VALVE_OPEN_PIN, VALVE_CLOSE_PIN);
+        mode.begin(MODE_OPEN_PIN, MODE_AUTO_PIN, MODE_CLOSE_PIN);
         environment.begin(DHT_PIN, DHT_TYPE);
     }
 
@@ -80,6 +86,7 @@ private:
     FlowMeterAppConfig config;
     MeterHandler flowMeter { tasks, config.meter, std::bind(&FlowMeterApp::onSleep, this) };
     ValveHandler valve { mqtt };
+    ModeHandler mode { tasks, valve };
     EnvironmentHandler environment {};
 };
 
