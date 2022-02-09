@@ -7,7 +7,8 @@
 using namespace farmhub::client;
 
 class ModeHandler
-    : public BaseTask {
+    : public BaseTask,
+      public TelemetryProvider {
 public:
     enum class Mode {
         UNKNOWN,
@@ -29,6 +30,10 @@ public:
         this->closePin = closePin;
         pinMode(closePin, INPUT_PULLUP);
         Serial.printf("Initializing mode handler on pins open = %d, auto = %d, close = %d\n", openPin, autoPin, closePin);
+    }
+
+    void populateTelemetry(JsonObject& json) override {
+        json["mode"] = static_cast<int>(mode);
     }
 
 protected:

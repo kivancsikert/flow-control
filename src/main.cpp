@@ -53,6 +53,7 @@ public:
         : Application("Flow control", VERSION, deviceConfig, config, wifiProvider) {
         telemetryPublisher.registerProvider(flowMeter);
         telemetryPublisher.registerProvider(valve);
+        telemetryPublisher.registerProvider(mode);
         telemetryPublisher.registerProvider(environment);
 
         // Turn led on when we start
