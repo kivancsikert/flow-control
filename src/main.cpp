@@ -46,6 +46,25 @@ public:
     Property<seconds> sleepPeriod { this, "sleepPeriod", seconds::zero() };
 };
 
+class LedHandler : public BaseSleepListener {
+public:
+    LedHandler(SleepHandler& sleep)
+        : BaseSleepListener(sleep) {
+    }
+
+protected:
+    void onWake(WakeEvent& event) override {
+        // Turn led on when we start
+        pinMode(LED_PIN, OUTPUT);
+        digitalWrite(LED_PIN, HIGH);
+    }
+
+    void onDeepSleep(SleepEvent& event) override {
+        Serial.println("Turn off led");
+        digitalWrite(LED_PIN, LOW);
+    }
+};
+
 class FlowMeterApp
     : public Application {
 public:
@@ -55,10 +74,6 @@ public:
         telemetryPublisher.registerProvider(valve);
         telemetryPublisher.registerProvider(mode);
         telemetryPublisher.registerProvider(environment);
-
-        // Turn led on when we start
-        pinMode(LED_PIN, OUTPUT);
-        digitalWrite(LED_PIN, HIGH);
     }
 
 protected:
@@ -72,10 +87,7 @@ protected:
 private:
     void onSleep() {
         if (config.sleepPeriod.get() > seconds::zero()) {
-            // Turn off led when we go to sleep
-            digitalWrite(LED_PIN, LOW);
-
-            deepSleepFor(config.sleepPeriod.get());
+            sleep.deepSleepFor(config.sleepPeriod.get());
         }
     }
 
@@ -84,9 +96,10 @@ private:
     WiFiClient client;
 
     FlowMeterAppConfig config;
-    MeterHandler flowMeter { tasks, config.meter, std::bind(&FlowMeterApp::onSleep, this) };
+    MeterHandler flowMeter { tasks, sleep, config.meter, std::bind(&FlowMeterApp::onSleep, this) };
     ValveHandler valve { mqtt };
     ModeHandler mode { tasks, valve };
+    LedHandler led { sleep };
     EnvironmentHandler environment {};
 };
 

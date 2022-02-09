@@ -17,6 +17,7 @@ IRAM_ATTR void __meterHandlerCountCallback() {
 
 class MeterHandler
     : public BaseTask,
+      public BaseSleepListener,
       public TelemetryProvider {
 public:
     class Config
@@ -30,8 +31,9 @@ public:
         Property<seconds> noFlowTimeout { this, "noFlowTimeout", minutes { 10 } };
     };
 
-    MeterHandler(TaskContainer& tasks, const Config& config, std::function<void()> onSleep)
+    MeterHandler(TaskContainer& tasks, SleepHandler& sleep, const Config& config, std::function<void()> onSleep)
         : BaseTask(tasks, "Flow meter")
+        , BaseSleepListener(sleep)
         , config(config)
         , onSleep(onSleep) {
     }
@@ -64,15 +66,17 @@ protected:
             if (timeSinceLastFlow > config.noFlowTimeout.get()) {
                 Serial.printf("No flow for %ld seconds\n",
                     (long) duration_cast<seconds>(timeSinceLastFlow).count());
-
-                // Wake up on flow change
-                esp_sleep_enable_ext0_wakeup(flowPin, digitalRead(flowPin) == LOW);
                 onSleep();
             }
         } else {
             lastSeenFlow = now;
         }
         return sleepFor(config.measurementFrequency.get());
+    }
+
+    void onDeepSleep(SleepEvent& event) override {
+        Serial.println("Wake up on flow");
+        esp_sleep_enable_ext0_wakeup(flowPin, digitalRead(flowPin) == LOW);
     }
 
     void populateTelemetry(JsonObject& json) override {
