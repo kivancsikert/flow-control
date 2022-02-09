@@ -1,20 +1,39 @@
 #pragma once
 
 #include <Task.hpp>
+#include <Telemetry.hpp>
 
 #include "ValveHandler.hpp"
 
 using namespace farmhub::client;
 
+/**
+ * @brief Handles the physical "mode" switch that can manually force the valve to open or close in an emergency.
+ */
 class ModeHandler
     : public BaseTask,
       public TelemetryProvider {
 public:
     enum class Mode {
-        UNKNOWN,
-        OPEN,
-        AUTO,
-        CLOSED
+        /**
+         * @brief The mode handler has just been initialized.
+         */
+        INITIALIZED = -100,
+
+        /**
+         * @brief The valve is forced closed, remote commands are ignored.
+         */
+        CLOSED = -1,
+
+        /**
+         * @brief The valve is handled via remote commands.
+         */
+        AUTO = 0,
+
+        /**
+         * @brief The valve is forced open, remote commands are ignored.
+         */
+        OPEN = 1
     };
 
     ModeHandler(TaskContainer& tasks, ValveHandler& valveHandler)
@@ -79,5 +98,5 @@ private:
     gpio_num_t autoPin;
     gpio_num_t closePin;
 
-    Mode mode = Mode::UNKNOWN;
+    Mode mode = Mode::INITIALIZED;
 };
