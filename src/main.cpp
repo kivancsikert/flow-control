@@ -27,7 +27,7 @@ const gpio_num_t VALVE_OPEN_PIN = GPIO_NUM_22;
 const gpio_num_t VALVE_CLOSE_PIN = GPIO_NUM_25;
 const gpio_num_t MODE_OPEN_PIN = GPIO_NUM_5;
 const gpio_num_t MODE_AUTO_PIN = GPIO_NUM_23;
-const gpio_num_t MODE_CLOSE_PIN = GPIO_NUM_19;
+const gpio_num_t MODE_CLOSE_PIN = GPIO_NUM_33;
 
 class FlowMeterDeviceConfig : public Application::DeviceConfiguration {
 public:
