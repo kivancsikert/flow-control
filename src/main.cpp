@@ -21,18 +21,26 @@ using namespace farmhub::client;
 
 const gpio_num_t FLOW_PIN = GPIO_NUM_18;
 const gpio_num_t DHT_PIN = GPIO_NUM_26;
-const uint8_t DHT_TYPE = DHT11;
 const gpio_num_t LED_PIN = GPIO_NUM_19;
 const gpio_num_t VALVE_OPEN_PIN = GPIO_NUM_22;
 const gpio_num_t VALVE_CLOSE_PIN = GPIO_NUM_25;
 const gpio_num_t MODE_OPEN_PIN = GPIO_NUM_5;
 const gpio_num_t MODE_AUTO_PIN = GPIO_NUM_23;
-const gpio_num_t MODE_CLOSE_PIN = GPIO_NUM_19;
+const gpio_num_t MODE_CLOSE_PIN = GPIO_NUM_33;
 
 class FlowMeterDeviceConfig : public Application::DeviceConfiguration {
 public:
     FlowMeterDeviceConfig()
-        : Application::DeviceConfiguration("flow-control", "mk2") {
+        : Application::DeviceConfiguration("flow-control", "mk1") {
+
+    }
+
+    uint8_t getDhtType() {
+        if (model.get() == "mk1") {
+            return DHT11;
+        } else {
+            return DHT22;
+        }
     }
 };
 
@@ -81,7 +89,7 @@ protected:
         flowMeter.begin(FLOW_PIN);
         valve.begin(VALVE_OPEN_PIN, VALVE_CLOSE_PIN);
         mode.begin(MODE_OPEN_PIN, MODE_AUTO_PIN, MODE_CLOSE_PIN);
-        environment.begin(DHT_PIN, DHT_TYPE);
+        environment.begin(DHT_PIN, deviceConfig.getDhtType());
     }
 
 private:
