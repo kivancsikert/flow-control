@@ -9,10 +9,12 @@
 using namespace std::chrono;
 using namespace farmhub::client;
 
-FlowMeter* __meterInstance;
+FlowMeter* __meterInstance = nullptr;
 
 IRAM_ATTR void __meterHandlerCountCallback() {
-    __meterInstance->count();
+    if (__meterInstance != nullptr) {
+        __meterInstance->count();
+    }
 }
 
 class MeterHandler
@@ -41,8 +43,10 @@ public:
     void begin(gpio_num_t flowPin) {
         this->flowPin = flowPin;
 
+        noInterrupts();
         meter = new FlowMeter(digitalPinToInterrupt(flowPin), UncalibratedSensor, __meterHandlerCountCallback, RISING);
         __meterInstance = meter;
+        interrupts();
 
         auto now = boot_clock::now();
         lastMeasurement = now;
