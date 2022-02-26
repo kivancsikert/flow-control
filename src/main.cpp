@@ -63,6 +63,7 @@ public:
 protected:
     void onWake(WakeEvent& event) override {
         // Turn led on when we start
+        Serial.printf("Woken by source: %d\n", event.source);
         pinMode(LED_PIN, OUTPUT);
         digitalWrite(LED_PIN, HIGH);
     }
