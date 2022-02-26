@@ -32,7 +32,6 @@ class FlowMeterDeviceConfig : public Application::DeviceConfiguration {
 public:
     FlowMeterDeviceConfig()
         : Application::DeviceConfiguration("flow-control", "mk1") {
-
     }
 
     uint8_t getDhtType() {
@@ -87,7 +86,7 @@ public:
 
 protected:
     void beginApp() override {
-        flowMeter.begin(FLOW_PIN);
+        flowMeter.begin(FLOW_PIN, 5.0f);
         valve.begin(VALVE_OPEN_PIN, VALVE_CLOSE_PIN);
         mode.begin(MODE_OPEN_PIN, MODE_AUTO_PIN, MODE_CLOSE_PIN);
         environment.begin(DHT_PIN, deviceConfig.getDhtType());

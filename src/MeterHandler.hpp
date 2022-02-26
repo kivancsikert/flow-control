@@ -1,21 +1,13 @@
 #pragma once
 
-#include <FlowMeter.h>
 #include <chrono>
+#include <driver/pcnt.h>
 
 #include <Task.hpp>
 #include <Telemetry.hpp>
 
 using namespace std::chrono;
 using namespace farmhub::client;
-
-FlowMeter* __meterInstance = nullptr;
-
-IRAM_ATTR void __meterHandlerCountCallback() {
-    if (__meterInstance != nullptr) {
-        __meterInstance->count();
-    }
-}
 
 class MeterHandler
     : public BaseTask,
@@ -33,20 +25,36 @@ public:
         Property<seconds> noFlowTimeout { this, "noFlowTimeout", minutes { 10 } };
     };
 
-    MeterHandler(TaskContainer& tasks, SleepHandler& sleep, const Config& config, std::function<void()> onSleep)
+    MeterHandler(
+        TaskContainer& tasks, SleepHandler& sleep, const Config& config, std::function<void()> onSleep)
         : BaseTask(tasks, "Flow meter")
         , BaseSleepListener(sleep)
         , config(config)
         , onSleep(onSleep) {
     }
 
-    void begin(gpio_num_t flowPin) {
+    void begin(gpio_num_t flowPin, double kFactor) {
         this->flowPin = flowPin;
+        this->kFactor = kFactor;
+        Serial.printf("Configuring flow meter on pin %d\n", flowPin);
 
-        noInterrupts();
-        meter = new FlowMeter(digitalPinToInterrupt(flowPin), UncalibratedSensor, __meterHandlerCountCallback, RISING);
-        __meterInstance = meter;
-        interrupts();
+        pinMode(flowPin, INPUT);
+
+        pcnt_config_t pcntFreqConfig = {};
+        pcntFreqConfig.pulse_gpio_num = flowPin;
+        pcntFreqConfig.ctrl_gpio_num = PCNT_PIN_NOT_USED;
+        pcntFreqConfig.lctrl_mode = PCNT_MODE_KEEP;
+        pcntFreqConfig.hctrl_mode = PCNT_MODE_KEEP;
+        pcntFreqConfig.pos_mode = PCNT_COUNT_INC;
+        pcntFreqConfig.neg_mode = PCNT_COUNT_DIS;
+        pcntFreqConfig.unit = PCNT_UNIT_0;
+        pcntFreqConfig.channel = PCNT_CHANNEL_0;
+
+        pcnt_unit_config(&pcntFreqConfig);
+        pcnt_intr_disable(PCNT_UNIT_0);
+        pcnt_set_filter_value(PCNT_UNIT_0, 1023);
+        pcnt_filter_enable(PCNT_UNIT_0);
+        pcnt_counter_clear(PCNT_UNIT_0);
 
         auto now = boot_clock::now();
         lastMeasurement = now;
@@ -57,22 +65,29 @@ protected:
     const Schedule loop(const Timing& timing) override {
         auto now = boot_clock::now();
         milliseconds elapsed = duration_cast<milliseconds>(now - lastMeasurement);
-        lastMeasurement = now;
-        // TODO Contribute to FlowMeter (otherwise it will result in totals be NaN)
         if (elapsed.count() == 0) {
             return sleepFor(config.measurementFrequency.get());
         }
-        meter->tick(elapsed.count());
+        lastMeasurement = now;
 
-        double flowRate = meter->getCurrentFlowrate();
-        if (flowRate == 0.0 && config.noFlowTimeout.get() > seconds::zero()) {
-            auto timeSinceLastFlow = now - lastSeenFlow;
-            if (timeSinceLastFlow > config.noFlowTimeout.get()) {
-                Serial.printf("No flow for %ld seconds\n",
-                    (long) duration_cast<seconds>(timeSinceLastFlow).count());
-                onSleep();
+        int16_t pulses;
+        pcnt_get_counter_value(PCNT_UNIT_0, &pulses);
+        pcnt_counter_clear(PCNT_UNIT_0);
+
+        if (pulses == 0) {
+            if (config.noFlowTimeout.get() > seconds::zero()) {
+                auto timeSinceLastFlow = now - lastSeenFlow;
+                if (timeSinceLastFlow > config.noFlowTimeout.get()) {
+                    Serial.printf("No flow for %ld seconds\n",
+                        (long) duration_cast<seconds>(timeSinceLastFlow).count());
+                    onSleep();
+                }
             }
         } else {
+            double currentVolume = pulses / kFactor / 60.0f;
+            Serial.printf("Counted %d pulses, %.2f l/min, %.2f l\n",
+                pulses, currentVolume / (elapsed.count() / 1000.0f / 60.0f), currentVolume);
+            volume += currentVolume;
             lastSeenFlow = now;
         }
         return sleepFor(config.measurementFrequency.get());
@@ -84,14 +99,17 @@ protected:
     }
 
     void populateTelemetry(JsonObject& json) override {
-        json["volume"] = meter->getCurrentVolume();
+        json["volume"] = volume;
+        volume = 0.0;
     }
 
 private:
     const Config& config;
     std::function<void()> onSleep;
     gpio_num_t flowPin;
-    FlowMeter* meter;
+    double kFactor;
+
     time_point<boot_clock> lastMeasurement;
     time_point<boot_clock> lastSeenFlow;
+    double volume = 0.0;
 };
