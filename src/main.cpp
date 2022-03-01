@@ -41,6 +41,13 @@ public:
             return DHT22;
         }
     }
+
+    /**
+     * @brief The Q factor for the flow meter.
+     */
+    double getFlowMeterQFactor() {
+        return 5.0f;
+    }
 };
 
 class FlowMeterAppConfig : public Application::AppConfiguration {
@@ -68,7 +75,7 @@ protected:
     }
 
     void onDeepSleep(SleepEvent& event) override {
-        Serial.println("Turn off led");
+        // Turn off led when we go to sleep
         digitalWrite(LED_PIN, LOW);
     }
 };
@@ -86,7 +93,7 @@ public:
 
 protected:
     void beginApp() override {
-        flowMeter.begin(FLOW_PIN, 5.0f);
+        flowMeter.begin(FLOW_PIN, deviceConfig.getFlowMeterQFactor());
         valve.begin(VALVE_OPEN_PIN, VALVE_CLOSE_PIN);
         mode.begin(MODE_OPEN_PIN, MODE_AUTO_PIN, MODE_CLOSE_PIN);
         environment.begin(DHT_PIN, deviceConfig.getDhtType());
