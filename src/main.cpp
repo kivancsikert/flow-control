@@ -19,7 +19,6 @@
 
 using namespace farmhub::client;
 
-const gpio_num_t FLOW_PIN = GPIO_NUM_18;
 const gpio_num_t DHT_PIN = GPIO_NUM_26;
 const gpio_num_t LED_PIN = GPIO_NUM_19;
 const gpio_num_t VALVE_OPEN_PIN = GPIO_NUM_22;
@@ -34,12 +33,32 @@ public:
         : Application::DeviceConfiguration("flow-control", "mk1") {
     }
 
+    gpio_num_t getFlowMeterPin() {
+        if (model.get() == "mk0") {
+            return GPIO_NUM_18;
+        } else {
+            return GPIO_NUM_33;
+        }
+    }
+
+    bool isValvePresent() {
+        return model.get() != "mk0";
+    }
+
+    bool isTemperatureSensorPresent() {
+        return model.get() != "mk0";
+    }
+
     uint8_t getDhtType() {
         if (model.get() == "mk1") {
             return DHT11;
         } else {
             return DHT22;
         }
+    }
+
+    bool isModeSwitchPresent() {
+        return model.get() != "mk0";
     }
 
     /**
@@ -100,10 +119,19 @@ public:
 
 protected:
     void beginApp() override {
-        flowMeter.begin(FLOW_PIN, deviceConfig.getFlowMeterQFactor());
-        valve.begin(VALVE_OPEN_PIN, VALVE_CLOSE_PIN);
-        mode.begin(MODE_OPEN_PIN, MODE_AUTO_PIN, MODE_CLOSE_PIN);
-        environment.begin(DHT_PIN, deviceConfig.getDhtType());
+        flowMeter.begin(deviceConfig.getFlowMeterPin(), deviceConfig.getFlowMeterQFactor());
+
+        if (deviceConfig.isValvePresent()) {
+            valve.begin(VALVE_OPEN_PIN, VALVE_CLOSE_PIN);
+        }
+
+        if (deviceConfig.isModeSwitchPresent()) {
+            mode.begin(MODE_OPEN_PIN, MODE_AUTO_PIN, MODE_CLOSE_PIN);
+        }
+
+        if (deviceConfig.isTemperatureSensorPresent()) {
+            environment.begin(DHT_PIN, deviceConfig.getDhtType());
+        }
     }
 
 private:

@@ -53,9 +53,13 @@ public:
                 ? State::OPEN
                 : State::CLOSED;
         }
+        enabled = true;
     }
 
     void populateTelemetry(JsonObject& json) override {
+        if (!enabled) {
+            return;
+        }
         json["valve"] = state;
     }
 
@@ -82,6 +86,7 @@ public:
 
 private:
     const milliseconds pulseDuration;
+    bool enabled = false;
 
     gpio_num_t openPin;
     gpio_num_t closePin;
