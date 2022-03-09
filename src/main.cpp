@@ -113,7 +113,7 @@ private:
     FlowMeterAppConfig config;
     MeterHandler flowMeter { tasks, sleep, config.meter, std::bind(&FlowMeterApp::onSleep, this) };
     ValveHandler valve { mqtt };
-    ModeHandler mode { tasks, valve };
+    ModeHandler mode { tasks, sleep, valve };
     LedHandler led { sleep };
     EnvironmentHandler environment {};
 };

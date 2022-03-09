@@ -1,5 +1,6 @@
 #pragma once
 
+#include <Sleep.hpp>
 #include <Task.hpp>
 #include <Telemetry.hpp>
 
@@ -12,6 +13,7 @@ using namespace farmhub::client;
  */
 class ModeHandler
     : public BaseTask,
+      public BaseSleepListener,
       public TelemetryProvider {
 public:
     enum class Mode {
@@ -36,8 +38,9 @@ public:
         OPEN = 1
     };
 
-    ModeHandler(TaskContainer& tasks, ValveHandler& valveHandler)
+    ModeHandler(TaskContainer& tasks, SleepHandler& sleep, ValveHandler& valveHandler)
         : BaseTask(tasks, "Mode handler")
+        , BaseSleepListener(sleep)
         , valveHandler(valveHandler) {
     }
 
@@ -56,18 +59,41 @@ public:
     }
 
 protected:
-    const Schedule loop(const Timing& timing) override {
-        Mode currentMode;
-        if (digitalRead(openPin) == LOW) {
-            currentMode = Mode::OPEN;
-        } else if (digitalRead(closePin) == LOW) {
-            currentMode = Mode::CLOSED;
-        } else if (digitalRead(autoPin) == LOW) {
-            currentMode = Mode::AUTO;
+    void onWake(WakeEvent& event) override {
+        Mode currentMode = getSwitchState();
+        if (event.source == ESP_SLEEP_WAKEUP_UNDEFINED) {
+            setValveStateBasedOnMode(currentMode);
         } else {
-            currentMode = mode;
-            Serial.println("Unknown mode, none of the switch pins is LOW");
+            mode = currentMode;
         }
+    }
+
+    const Schedule loop(const Timing& timing) override {
+        setValveStateBasedOnMode(getSwitchState());
+        return sleepFor(seconds { 1 });
+    }
+
+private:
+    Mode getSwitchState() {
+        if (digitalRead(openPin) == LOW) {
+            return Mode::OPEN;
+        } else if (digitalRead(closePin) == LOW) {
+            return Mode::CLOSED;
+        } else if (digitalRead(autoPin) == LOW) {
+            return Mode::AUTO;
+        } else {
+            Serial.print("Unknown mode, none of the switch pins is LOW. ");
+            if (mode == Mode::INITIALIZED) {
+                Serial.println("Still in initialized state, falling back to CLOSED.");
+                return Mode::CLOSED;
+            } else {
+                Serial.printf("Falling back to previous state: %d.\n", static_cast<int>(mode));
+                return mode;
+            }
+        }
+    }
+
+    void setValveStateBasedOnMode(Mode currentMode) {
         if (currentMode != mode) {
             Serial.printf("Mode is now %d (was %d)\n",
                 static_cast<int>(currentMode),
@@ -88,10 +114,8 @@ protected:
                     break;
             }
         }
-        return sleepFor(seconds { 1 });
     }
 
-private:
     ValveHandler& valveHandler;
 
     gpio_num_t openPin;
