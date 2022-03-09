@@ -52,14 +52,21 @@ public:
         this->closePin = closePin;
         pinMode(closePin, INPUT_PULLUP);
         Serial.printf("Initializing mode handler on pins open = %d, auto = %d, close = %d\n", openPin, autoPin, closePin);
+        enabled = true;
     }
 
     void populateTelemetry(JsonObject& json) override {
+        if (!enabled) {
+            return;
+        }
         json["mode"] = static_cast<int>(mode);
     }
 
 protected:
     void onWake(WakeEvent& event) override {
+        if (!enabled) {
+            return;
+        }
         Mode currentMode = getSwitchState();
         if (event.source == ESP_SLEEP_WAKEUP_UNDEFINED) {
             setValveStateBasedOnMode(currentMode);
@@ -69,6 +76,9 @@ protected:
     }
 
     const Schedule loop(const Timing& timing) override {
+        if (!enabled) {
+            return sleepIndefinitely();
+        }
         setValveStateBasedOnMode(getSwitchState());
         return sleepFor(seconds { 1 });
     }
@@ -117,6 +127,7 @@ private:
     }
 
     ValveHandler& valveHandler;
+    bool enabled = false;
 
     gpio_num_t openPin;
     gpio_num_t autoPin;
