@@ -45,7 +45,7 @@ public:
         return model.get() != "mk0";
     }
 
-    bool isTemperatureSensorPresent() {
+    bool isEnvironmentSensorPresent() {
         return model.get() != "mk0";
     }
 
@@ -129,7 +129,7 @@ protected:
             mode.begin(MODE_OPEN_PIN, MODE_AUTO_PIN, MODE_CLOSE_PIN);
         }
 
-        if (deviceConfig.isTemperatureSensorPresent()) {
+        if (deviceConfig.isEnvironmentSensorPresent()) {
             environment.begin(DHT_PIN, deviceConfig.getDhtType());
         }
     }
