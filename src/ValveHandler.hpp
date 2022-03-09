@@ -34,6 +34,8 @@ public:
     }
 
     void begin(gpio_num_t openPin, gpio_num_t closePin) {
+        Serial.printf("Initializing valve handler on pins open = %d, close = %d, pulse duration = %d ms\n",
+            openPin, closePin, (int) pulseDuration.count());
         this->openPin = openPin;
         this->closePin = closePin;
         pinMode(openPin, OUTPUT);
