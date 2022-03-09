@@ -64,6 +64,9 @@ public:
 
 protected:
     void onWake(WakeEvent& event) override {
+        if (!enabled) {
+            return;
+        }
         Mode currentMode = getSwitchState();
         if (event.source == ESP_SLEEP_WAKEUP_UNDEFINED) {
             setValveStateBasedOnMode(currentMode);
