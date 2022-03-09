@@ -23,7 +23,8 @@ public:
         OPEN = 1
     };
 
-    ValveHandler(MqttHandler& mqtt) {
+    ValveHandler(MqttHandler& mqtt, milliseconds pulseDuration)
+        : pulseDuration(pulseDuration) {
         mqtt.registerCommand("set-valve", [&](const JsonObject& request, JsonObject& response) {
             State state = request["state"].as<State>();
             Serial.println("Controlling valve to " + String(static_cast<int>(state)));
@@ -33,6 +34,8 @@ public:
     }
 
     void begin(gpio_num_t openPin, gpio_num_t closePin) {
+        Serial.printf("Initializing valve handler on pins open = %d, close = %d, pulse duration = %d ms\n",
+            openPin, closePin, (int) pulseDuration.count());
         this->openPin = openPin;
         this->closePin = closePin;
         pinMode(openPin, OUTPUT);
@@ -72,12 +75,14 @@ public:
                 digitalWrite(closePin, LOW);
                 break;
         }
-        delay(250);
+        delay(pulseDuration.count());
         digitalWrite(openPin, HIGH);
         digitalWrite(closePin, HIGH);
     }
 
 private:
+    const milliseconds pulseDuration;
+
     gpio_num_t openPin;
     gpio_num_t closePin;
     State state;

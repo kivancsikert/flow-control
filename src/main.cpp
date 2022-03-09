@@ -48,6 +48,13 @@ public:
     double getFlowMeterQFactor() {
         return 5.0f;
     }
+
+    /**
+     * @brief The amount of time to wait for the latching valve to switch.
+     */
+    milliseconds getValvePulseDuration() {
+        return milliseconds { 1000 };
+    }
 };
 
 class FlowMeterAppConfig : public Application::AppConfiguration {
@@ -112,7 +119,7 @@ private:
 
     FlowMeterAppConfig config;
     MeterHandler flowMeter { tasks, sleep, config.meter, std::bind(&FlowMeterApp::onSleep, this) };
-    ValveHandler valve { mqtt };
+    ValveHandler valve { mqtt, deviceConfig.getValvePulseDuration() };
     ModeHandler mode { tasks, sleep, valve };
     LedHandler led { sleep };
     EnvironmentHandler environment {};
