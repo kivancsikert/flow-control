@@ -35,13 +35,31 @@ public:
 
     gpio_num_t getFlowMeterPin() {
         if (model.get() == "mk0") {
-            return GPIO_NUM_18;
-        } else {
             return GPIO_NUM_33;
+        } else {
+            return GPIO_NUM_18;
         }
     }
 
+    /**
+     * @brief The Q factor for the flow meter.
+     */
+    double getFlowMeterQFactor() {
+        return 5.0f;
+    }
+
     bool isValvePresent() {
+        return model.get() != "mk0";
+    }
+
+    /**
+     * @brief The amount of time to wait for the latching valve to switch.
+     */
+    milliseconds getValvePulseDuration() {
+        return milliseconds { 1000 };
+    }
+
+    bool isModeSwitchPresent() {
         return model.get() != "mk0";
     }
 
@@ -55,24 +73,6 @@ public:
         } else {
             return DHT22;
         }
-    }
-
-    bool isModeSwitchPresent() {
-        return model.get() != "mk0";
-    }
-
-    /**
-     * @brief The Q factor for the flow meter.
-     */
-    double getFlowMeterQFactor() {
-        return 5.0f;
-    }
-
-    /**
-     * @brief The amount of time to wait for the latching valve to switch.
-     */
-    milliseconds getValvePulseDuration() {
-        return milliseconds { 1000 };
     }
 };
 
