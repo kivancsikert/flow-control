@@ -46,7 +46,6 @@ public:
         // RTC memory is reset to 0 upon power-up
         if (valveHandlerStoredState == 0) {
             Serial.println("Initializing for the first time");
-            setState(State::CLOSED);
         } else {
             Serial.println("Initializing after waking from sleep with state = " + String(valveHandlerStoredState));
             state = valveHandlerStoredState == 1
