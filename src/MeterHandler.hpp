@@ -36,7 +36,7 @@ public:
     void begin(gpio_num_t flowPin, double qFactor) {
         this->flowPin = flowPin;
         this->qFactor = qFactor;
-        Serial.printf("Flow meter on pin %d with Q = %f\n", flowPin, qFactor);
+        Serial.printf("Initializing flow meter on pin %d with Q = %f\n", flowPin, qFactor);
 
         pinMode(flowPin, INPUT);
 

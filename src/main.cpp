@@ -56,7 +56,7 @@ public:
      * @brief The amount of time to wait for the latching valve to switch.
      */
     milliseconds getValvePulseDuration() {
-        return milliseconds { 1000 };
+        return milliseconds { 250 };
     }
 
     bool isModeSwitchPresent() {
