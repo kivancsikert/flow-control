@@ -59,6 +59,7 @@ public:
         auto now = boot_clock::now();
         lastMeasurement = now;
         lastSeenFlow = now;
+        lastPublished = now;
     }
 
 protected:
@@ -99,8 +100,15 @@ protected:
     }
 
     void populateTelemetry(JsonObject& json) override {
+        // Volume is measured in liters
         json["volume"] = volume;
+        auto duration = duration_cast<microseconds>(lastMeasurement - lastPublished);
+        if (duration > microseconds::zero()) {
+            // Flow rate is measured in in liters / min
+            json["flowRate"] = volume / duration.count() * 1000 * 1000 * 60;
+        }
         volume = 0.0;
+        lastPublished = lastMeasurement;
     }
 
 private:
@@ -111,5 +119,6 @@ private:
 
     time_point<boot_clock> lastMeasurement;
     time_point<boot_clock> lastSeenFlow;
+    time_point<boot_clock> lastPublished;
     double volume = 0.0;
 };
