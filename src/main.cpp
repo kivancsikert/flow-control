@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <ArduinoJson.hpp>
+#include <DHTesp.h>
 #include <ESPmDNS.h>
 #include <SPIFFS.h>
 #include <WiFiManager.h>
@@ -67,11 +68,11 @@ public:
         return model.get() != "mk0";
     }
 
-    uint8_t getDhtType() {
+    DHTesp::DHT_MODEL_t getDhtType() {
         if (model.get() == "mk1") {
-            return DHT11;
+            return DHTesp::DHT_MODEL_t::DHT11;
         } else {
-            return DHT22;
+            return DHTesp::DHT_MODEL_t::AM2302;
         }
     }
 };
