@@ -1,6 +1,6 @@
 #pragma once
 
-#include <DHT.h>
+#include <DHTesp.h>
 
 #include <Telemetry.hpp>
 
@@ -12,10 +12,9 @@ class EnvironmentHandler
 public:
     EnvironmentHandler() = default;
 
-    void begin(gpio_num_t pin, uint8_t type) {
+    void begin(gpio_num_t pin, DHTesp::DHT_MODEL_t type) {
         Serial.printf("Initializing DHT sensor type %d on pin %d\n", type, pin);
-        dht = new DHT(pin, type);
-        dht->begin();
+        dht.setup(pin, type);
         enabled = true;
     }
 
@@ -24,14 +23,13 @@ protected:
         if (!enabled) {
             return;
         }
-        auto temp = dht->readTemperature();
-        auto humidity = dht->readHumidity();
-        Serial.printf("Temperature: %f, humidity: %f\n", temp, humidity);
-        json["temperature"] = temp;
-        json["humidity"] = humidity;
+        auto data = dht.getTempAndHumidity();
+        Serial.printf("Temperature: %f, humidity: %f\n", data.temperature, data.humidity);
+        json["temperature"] = data.temperature;
+        json["humidity"] = data.humidity;
     }
 
 private:
-    DHT* dht;
+    DHTesp dht;
     bool enabled = false;
 };
