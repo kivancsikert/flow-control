@@ -148,7 +148,7 @@ private:
 
     FlowMeterAppConfig config;
     MeterHandler flowMeter { tasks, sleep, config.meter, std::bind(&FlowMeterApp::onSleep, this) };
-    ValveHandler valve { mqtt, deviceConfig.getValvePulseDuration() };
+    ValveHandler valve { mqtt, events, deviceConfig.getValvePulseDuration() };
     ModeHandler mode { tasks, sleep, valve };
     LedHandler led { sleep };
     EnvironmentHandler environment {};
