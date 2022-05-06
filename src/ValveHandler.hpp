@@ -1,5 +1,6 @@
 #pragma once
 
+#include <Events.hpp>
 #include <Telemetry.hpp>
 
 using namespace std::chrono;
@@ -23,8 +24,9 @@ public:
         OPEN = 1
     };
 
-    ValveHandler(MqttHandler& mqtt, milliseconds pulseDuration)
-        : pulseDuration(pulseDuration) {
+    ValveHandler(MqttHandler& mqtt, EventHandler& events, milliseconds pulseDuration)
+        : pulseDuration(pulseDuration)
+        , events(events) {
         mqtt.registerCommand("set-valve", [&](const JsonObject& request, JsonObject& response) {
             State state = request["state"].as<State>();
             Serial.println("Controlling valve to " + String(static_cast<int>(state)));
@@ -81,9 +83,14 @@ public:
         delay(pulseDuration.count());
         digitalWrite(openPin, HIGH);
         digitalWrite(closePin, HIGH);
+        events.publishEvent("valve/state", [=](JsonObject& json) {
+            json["state"] = state;
+        });
     }
 
 private:
+    EventHandler& events;
+
     const milliseconds pulseDuration;
     bool enabled = false;
 
