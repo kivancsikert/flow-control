@@ -25,8 +25,8 @@ public:
     };
 
     ValveHandler(MqttHandler& mqtt, EventHandler& events, milliseconds pulseDuration)
-        : pulseDuration(pulseDuration)
-        , events(events) {
+        : events(events)
+        , pulseDuration(pulseDuration) {
         mqtt.registerCommand("set-valve", [&](const JsonObject& request, JsonObject& response) {
             State state = request["state"].as<State>();
             Serial.println("Controlling valve to " + String(static_cast<int>(state)));
