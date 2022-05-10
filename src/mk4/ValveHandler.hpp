@@ -39,7 +39,6 @@ public:
         pinMode(mode2Pin, OUTPUT);
         pinMode(currentPin, INPUT);
 
-        digitalWrite(sleepPin, HIGH);
         digitalWrite(mode1Pin, HIGH);
         digitalWrite(mode2Pin, HIGH);
 
@@ -48,11 +47,13 @@ public:
 
 protected:
     void setStateInternal(State state) override {
+        digitalWrite(sleepPin, HIGH);
         digitalWrite(enablePin, HIGH);
         digitalWrite(phasePin, state == State::OPEN ? HIGH : LOW);
     }
 
     void resetStateInternal() override {
+        digitalWrite(sleepPin, LOW);
         digitalWrite(enablePin, LOW);
     }
 
