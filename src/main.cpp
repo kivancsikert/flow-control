@@ -1,6 +1,5 @@
 #include <Arduino.h>
 #include <ArduinoJson.hpp>
-#include <DHTesp.h>
 #include <ESPmDNS.h>
 #include <SPIFFS.h>
 #include <WiFiManager.h>
@@ -12,7 +11,11 @@
 #include <Telemetry.hpp>
 #include <wifi/WiFiManagerProvider.hpp>
 
-#include "EnvironmentHandler.hpp"
+#ifdef MK3
+#include "EnvironmentHandler_DHT.hpp"
+#elif MK4
+#include "EnvironmentHandler_SHT.hpp"
+#endif
 #include "MeterHandler.hpp"
 #include "ModeHandler.hpp"
 #include "ValveHandler.hpp"
@@ -20,6 +23,7 @@
 
 using namespace farmhub::client;
 
+#ifdef MK3
 const gpio_num_t DHT_PIN = GPIO_NUM_26;
 const gpio_num_t LED_PIN = GPIO_NUM_19;
 const gpio_num_t VALVE_OPEN_PIN = GPIO_NUM_22;
@@ -27,6 +31,12 @@ const gpio_num_t VALVE_CLOSE_PIN = GPIO_NUM_25;
 const gpio_num_t MODE_OPEN_PIN = GPIO_NUM_5;
 const gpio_num_t MODE_AUTO_PIN = GPIO_NUM_23;
 const gpio_num_t MODE_CLOSE_PIN = GPIO_NUM_33;
+#elif MK4
+const gpio_num_t LED_PIN = GPIO_NUM_26;
+const gpio_num_t MODE_OPEN_PIN = GPIO_NUM_3;
+const gpio_num_t MODE_AUTO_PIN = GPIO_NUM_4;
+const gpio_num_t MODE_CLOSE_PIN = GPIO_NUM_5;
+#endif
 
 class FlowMeterDeviceConfig : public Application::DeviceConfiguration {
 public:
@@ -37,8 +47,13 @@ public:
     gpio_num_t getFlowMeterPin() {
         if (model.get() == "mk0") {
             return GPIO_NUM_33;
-        } else {
+        } else if (model.get() == "mk1" || model.get() == "mk2" || model.get() == "mk3") {
             return GPIO_NUM_18;
+        } else if (model.get() == "mk4") {
+            return GPIO_NUM_17;
+        } else {
+            fatalError("Unknown model " + model.get());
+            return GPIO_NUM_MAX;
         }
     }
 
@@ -68,6 +83,7 @@ public:
         return model.get() != "mk0";
     }
 
+#ifdef MK3
     DHTesp::DHT_MODEL_t getDhtType() {
         if (model.get() == "mk1") {
             return DHTesp::DHT_MODEL_t::DHT11;
@@ -75,6 +91,7 @@ public:
             return DHTesp::DHT_MODEL_t::AM2302;
         }
     }
+#endif
 };
 
 class FlowMeterAppConfig : public Application::AppConfiguration {
@@ -122,16 +139,22 @@ protected:
     void beginApp() override {
         flowMeter.begin(deviceConfig.getFlowMeterPin(), deviceConfig.getFlowMeterQFactor());
 
+#ifdef MK3
         if (deviceConfig.isValvePresent()) {
             valve.begin(VALVE_OPEN_PIN, VALVE_CLOSE_PIN);
         }
+#endif
 
         if (deviceConfig.isModeSwitchPresent()) {
             mode.begin(MODE_OPEN_PIN, MODE_AUTO_PIN, MODE_CLOSE_PIN);
         }
 
         if (deviceConfig.isEnvironmentSensorPresent()) {
+#ifdef MK3
             environment.begin(DHT_PIN, deviceConfig.getDhtType());
+#elif MK4
+            environment.begin();
+#endif
         }
     }
 
