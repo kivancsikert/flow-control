@@ -4,15 +4,15 @@
 
 #include <SHTSensor.h>
 
-#include <Telemetry.hpp>
+#include "../AbstractEnvironmentHandler.hpp"
 
 using namespace farmhub::client;
 
-class EnvironmentHandler
-    : public TelemetryProvider {
+class ShtHandler
+    : public AbstractEnvironmentHandler {
 
 public:
-    EnvironmentHandler() = default;
+    ShtHandler() = default;
 
     void begin() {
         Serial.print("Initializing SHT sensor");
@@ -30,18 +30,13 @@ public:
     }
 
 protected:
-    void populateTelemetry(JsonObject& json) override {
-        if (!enabled) {
-            return;
-        }
+    void populateTelemetryInternal(JsonObject& json) override {
         auto temperature = sht.getTemperature();
         auto humidity = sht.getHumidity();
-        Serial.printf("Temperature: %f, humidity: %f\n", temperature, humidity);
         json["temperature"] = temperature;
         json["humidity"] = humidity;
     }
 
 private:
     SHTSensor sht;
-    bool enabled = false;
 };
