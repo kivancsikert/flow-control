@@ -58,7 +58,7 @@ protected:
 
     void onDeepSleep(SleepEvent& event) override {
         // Turn off led when we go to sleep
-        Serial.printf("Going to sleep, duration: %d us\n", event.duration.count());
+        Serial.printf("Going to sleep, duration: %ld us\n", (long) event.duration.count());
         digitalWrite(ledPin, LOW);
     }
 
