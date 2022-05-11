@@ -1,17 +1,21 @@
 #pragma once
 
+#include <cmath>
+
 #include "../ValveHandler.hpp"
 
 using namespace std::chrono;
 using namespace farmhub::client;
 
-#define PWM_CHANNEL 0        //<- ez innen indul, és inkrementálódik, ha több kell
-#define PWM_RESOLUTION 8     // 8 bit
-#define PMW_MAX_VALUE 255    // 2 ^ PWM_RESOLUTION - 1
-#define PWM_FREQ 25000       // 25kHz
-
 class Drv8801ValveController
     : public ValveController {
+
+private:
+    const uint8_t PWM_PHASE = 0;                                  // PWM channel for phase
+    const uint8_t PWM_RESOLUTION = 8;                             // 8 bit
+    const int PMW_MAX_VALUE = std::pow(2, PWM_RESOLUTION) - 1;    // 2 ^ PWM_RESOLUTION - 1
+    const uint32_t PWM_FREQ = 25000;                              // 25kHz
+
 public:
     void begin(
         gpio_num_t enablePin,
@@ -21,7 +25,7 @@ public:
         gpio_num_t mode1Pin,
         gpio_num_t mode2Pin,
         gpio_num_t currentPin) {
-        Serial.printf("Initializing valve handler on pins enable = %d, phase = %d, fault = %d, sleep = %d, mode1 = %d, mode2 = %d, current = %d\n",
+        Serial.printf("Initializing DRV8801 valve handler on pins enable = %d, phase = %d, fault = %d, sleep = %d, mode1 = %d, mode2 = %d, current = %d\n",
             enablePin, phasePin, faultPin, sleepPin, mode1Pin, mode2Pin, currentPin);
 
         this->enablePin = enablePin;
@@ -33,14 +37,14 @@ public:
         this->currentPin = currentPin;
 
         pinMode(enablePin, OUTPUT);
-        pinMode(phasePin, OUTPUT);
-        ledcAttachPin(phasePin, PWM_CHANNEL);
-        ledcSetup(PWM_CHANNEL, PWM_FREQ, PWM_RESOLUTION);
-
-        pinMode(faultPin, INPUT);
         pinMode(sleepPin, OUTPUT);
         pinMode(mode1Pin, OUTPUT);
         pinMode(mode2Pin, OUTPUT);
+        pinMode(phasePin, OUTPUT);
+        ledcAttachPin(phasePin, PWM_PHASE);
+        ledcSetup(PWM_PHASE, PWM_FREQ, PWM_RESOLUTION);
+
+        pinMode(faultPin, INPUT);
         pinMode(currentPin, INPUT);
 
         digitalWrite(mode1Pin, HIGH);
@@ -68,9 +72,9 @@ private:
         int switchDuty = phase ? PMW_MAX_VALUE : 0;
         int holdDuty = PMW_MAX_VALUE / 2 + (phase ? 1 : -1) * (int) (PMW_MAX_VALUE / 2 * 0.40);
         Serial.printf("Switching with duty = %d, hold = %d\n", switchDuty, holdDuty);
-        ledcWrite(PWM_CHANNEL, switchDuty);
+        ledcWrite(PWM_PHASE, switchDuty);
         delay(500);
-        ledcWrite(PWM_CHANNEL, holdDuty);
+        ledcWrite(PWM_PHASE, holdDuty);
     }
 
     gpio_num_t enablePin;
