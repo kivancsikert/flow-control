@@ -1,8 +1,8 @@
 #pragma once
 
 #include "../AbstractFlowControlApp.hpp"
-#include "ShtHandler.hpp"
 #include "Drv8801ValveController.hpp"
+#include "ShtHandler.hpp"
 
 using namespace farmhub::client;
 
@@ -50,10 +50,6 @@ private:
     NormallyClosedValveControlStrategy valveStrategy;
     Drv8801ValveController valveController { deviceConfig.valve };
     ValveHandler valve { mqtt, events, valveStrategy, valveController };
-    IntervalTask switcher { tasks, "valve-switcher", seconds { 5 }, [this]() {
-                               open = !open;
-                               valve.setState(open ? ValveHandler::State::OPEN : ValveHandler::State::CLOSED);
-                           } };
 
     bool open = false;
 };
