@@ -6,6 +6,7 @@
 #include <wifi/WiFiManagerProvider.hpp>
 
 #include "MeterHandler.hpp"
+#include "ValveHandler.hpp"
 #include "version.h"
 
 using namespace farmhub::client;
@@ -70,16 +71,19 @@ class AbstractFlowControlApp
     : public Application {
 public:
     AbstractFlowControlApp(
-        AbstractFlowControlDeviceConfig& deviceConfig)
+        AbstractFlowControlDeviceConfig& deviceConfig, ValveControlStrategy& valveStrategy, ValveController& valveController)
         : Application("Flow control", VERSION, deviceConfig, config, wifiProvider)
-        , deviceConfig(deviceConfig) {
+        , deviceConfig(deviceConfig)
+        , valve(mqtt, events, valveStrategy, valveController) {
         telemetryPublisher.registerProvider(flowMeter);
+        telemetryPublisher.registerProvider(valve);
     }
 
 protected:
     virtual void beginApp() override {
         led.begin(deviceConfig.getLedPin());
         flowMeter.begin(deviceConfig.getFlowMeterPin(), deviceConfig.getFlowMeterQFactor());
+        valve.begin();
     }
 
 private:
@@ -94,6 +98,9 @@ private:
     WiFiClient client;
 
     FlowControlAppConfig config;
-    MeterHandler flowMeter { tasks, sleep, config.meter, std::bind(&AbstractFlowControlApp::onSleep, this) };
     LedHandler led { sleep };
+    MeterHandler flowMeter { tasks, sleep, config.meter, std::bind(&AbstractFlowControlApp::onSleep, this) };
+
+protected:
+    ValveHandler valve;
 };

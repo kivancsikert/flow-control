@@ -26,7 +26,7 @@ public:
 class FlowControlApp : public AbstractFlowControlApp {
 public:
     FlowControlApp()
-        : AbstractFlowControlApp(deviceConfig) {
+        : AbstractFlowControlApp(deviceConfig, valveStrategy, valveController) {
         telemetryPublisher.registerProvider(environment);
     }
 
@@ -49,7 +49,6 @@ private:
     ShtHandler environment;
     NormallyClosedValveControlStrategy valveStrategy;
     Drv8801ValveController valveController { deviceConfig.valve };
-    ValveHandler valve { mqtt, events, valveStrategy, valveController };
 
     bool open = false;
 };

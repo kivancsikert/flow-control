@@ -119,8 +119,7 @@ public:
         });
     }
 
-protected:
-    virtual void begin() {
+    void begin() {
         controller.stop();
 
         // RTC memory is reset to 0 upon power-up

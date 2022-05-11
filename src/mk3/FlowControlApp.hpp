@@ -65,7 +65,7 @@ public:
 class FlowControlApp : public AbstractFlowControlApp {
 public:
     FlowControlApp()
-        : AbstractFlowControlApp(deviceConfig) {
+        : AbstractFlowControlApp(deviceConfig, valveStrategy, valveController) {
         telemetryPublisher.registerProvider(environment);
         telemetryPublisher.registerProvider(valve);
         telemetryPublisher.registerProvider(mode);
@@ -92,6 +92,5 @@ private:
     DhtHandler environment;
     LatchingValveControlStrategy valveStrategy { deviceConfig.getValvePulseDuration()};
     RelayValveController valveController;
-    ValveHandler valve { mqtt, events, valveStrategy, valveController };
     ModeHandler mode { tasks, sleep, valve };
 };
