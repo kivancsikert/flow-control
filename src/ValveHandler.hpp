@@ -9,8 +9,65 @@ using namespace farmhub::client;
 RTC_DATA_ATTR
 int8_t valveHandlerStoredState;
 
+class ValveController {
+public:
+    virtual void forward() = 0;
+    virtual void reverse() = 0;
+    virtual void stop() = 0;
+};
+
+class ValveControlStrategy {
+public:
+    virtual void open(ValveController& controller) = 0;
+    virtual void close(ValveController& controller) = 0;
+};
+
+class NormallyClosedValveControlStrategy
+    : public ValveControlStrategy {
+public:
+    void open(ValveController& controller) override {
+        controller.forward();
+    }
+    void close(ValveController& controller) override {
+        controller.stop();
+    }
+};
+
+class NormallyOpenValveControlStrategy
+    : public ValveControlStrategy {
+public:
+    void open(ValveController& controller) override {
+        controller.stop();
+    }
+    void close(ValveController& controller) override {
+        controller.reverse();
+    }
+};
+
+class LatchingValveControlStrategy : public ValveControlStrategy {
+public:
+    LatchingValveControlStrategy(milliseconds pulseDuration)
+        : pulseDuration(pulseDuration) {
+    }
+
+    void open(ValveController& controller) override {
+        controller.forward();
+        delay(pulseDuration.count());
+        controller.stop();
+    }
+
+    void close(ValveController& controller) override {
+        controller.reverse();
+        delay(pulseDuration.count());
+        controller.stop();
+    }
+
+private:
+    const milliseconds pulseDuration;
+};
+
 /**
- * @brief Handles the valve.
+ * @brief Handles the valve on an abstract level.
  *
  * Allows opening and closing via {@link ValveHandler#setState}.
  * Handles remote MQTT commands to open and close the valve.
@@ -24,37 +81,16 @@ public:
         OPEN = 1
     };
 
-    ValveHandler(MqttHandler& mqtt, EventHandler& events, milliseconds pulseDuration)
+    ValveHandler(MqttHandler& mqtt, EventHandler& events, ValveControlStrategy& strategy, ValveController& controller)
         : events(events)
-        , pulseDuration(pulseDuration) {
+        , strategy(strategy)
+        , controller(controller) {
         mqtt.registerCommand("set-valve", [&](const JsonObject& request, JsonObject& response) {
             State state = request["state"].as<State>();
             Serial.println("Controlling valve to " + String(static_cast<int>(state)));
             setState(state);
             response["state"] = state;
         });
-    }
-
-    void begin(gpio_num_t openPin, gpio_num_t closePin) {
-        Serial.printf("Initializing valve handler on pins open = %d, close = %d, pulse duration = %d ms\n",
-            openPin, closePin, (int) pulseDuration.count());
-        this->openPin = openPin;
-        this->closePin = closePin;
-        pinMode(openPin, OUTPUT);
-        pinMode(closePin, OUTPUT);
-        digitalWrite(openPin, HIGH);
-        digitalWrite(closePin, HIGH);
-
-        // RTC memory is reset to 0 upon power-up
-        if (valveHandlerStoredState == 0) {
-            Serial.println("Initializing for the first time");
-        } else {
-            Serial.println("Initializing after waking from sleep with state = " + String(valveHandlerStoredState));
-            state = valveHandlerStoredState == 1
-                ? State::OPEN
-                : State::CLOSED;
-        }
-        enabled = true;
     }
 
     void populateTelemetry(JsonObject& json) override {
@@ -70,33 +106,41 @@ public:
             case State::OPEN:
                 Serial.println("Opening");
                 valveHandlerStoredState = 1;
-                digitalWrite(openPin, LOW);
-                digitalWrite(closePin, HIGH);
+                strategy.open(controller);
                 break;
             case State::CLOSED:
                 Serial.println("Closing");
                 valveHandlerStoredState = -1;
-                digitalWrite(openPin, HIGH);
-                digitalWrite(closePin, LOW);
+                strategy.close(controller);
                 break;
         }
-        delay(pulseDuration.count());
-        digitalWrite(openPin, HIGH);
-        digitalWrite(closePin, HIGH);
         events.publishEvent("valve/state", [=](JsonObject& json) {
             json["state"] = state;
         });
     }
 
+    void begin() {
+        controller.stop();
+
+        // RTC memory is reset to 0 upon power-up
+        if (valveHandlerStoredState == 0) {
+            Serial.println("Initializing for the first time");
+        } else {
+            Serial.println("Initializing after waking from sleep with state = " + String(valveHandlerStoredState));
+            state = valveHandlerStoredState == 1
+                ? State::OPEN
+                : State::CLOSED;
+        }
+        enabled = true;
+    }
+
 private:
     EventHandler& events;
+    ValveControlStrategy& strategy;
+    ValveController& controller;
 
-    const milliseconds pulseDuration;
-    bool enabled = false;
-
-    gpio_num_t openPin;
-    gpio_num_t closePin;
     State state;
+    bool enabled = false;
 };
 
 bool convertToJson(const ValveHandler::State& src, JsonVariant dst) {

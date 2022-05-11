@@ -2,15 +2,15 @@
 
 #include <DHTesp.h>
 
-#include <Telemetry.hpp>
+#include "../AbstractEnvironmentHandler.hpp"
 
 using namespace farmhub::client;
 
-class EnvironmentHandler
-    : public TelemetryProvider {
+class DhtHandler
+    : public AbstractEnvironmentHandler {
 
 public:
-    EnvironmentHandler() = default;
+    DhtHandler() = default;
 
     void begin(gpio_num_t pin, DHTesp::DHT_MODEL_t type) {
         Serial.printf("Initializing DHT sensor type %d on pin %d\n", type, pin);
@@ -19,17 +19,12 @@ public:
     }
 
 protected:
-    void populateTelemetry(JsonObject& json) override {
-        if (!enabled) {
-            return;
-        }
+    void populateTelemetryInternal(JsonObject& json) override {
         auto data = dht.getTempAndHumidity();
-        Serial.printf("Temperature: %f, humidity: %f\n", data.temperature, data.humidity);
         json["temperature"] = data.temperature;
         json["humidity"] = data.humidity;
     }
 
 private:
     DHTesp dht;
-    bool enabled = false;
 };
