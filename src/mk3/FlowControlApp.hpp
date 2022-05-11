@@ -26,6 +26,10 @@ public:
         return LED_PIN;
     }
 
+    bool getLedEnabledState() override {
+        return HIGH;
+    }
+
     gpio_num_t getFlowMeterPin() override {
         if (model.get() == "mk0") {
             return GPIO_NUM_33;

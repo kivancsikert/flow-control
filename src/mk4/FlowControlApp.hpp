@@ -16,6 +16,10 @@ public:
         return GPIO_NUM_26;
     }
 
+    bool getLedEnabledState() override {
+        return LOW;
+    }
+
     gpio_num_t getFlowMeterPin() override {
         return GPIO_NUM_17;
     }
