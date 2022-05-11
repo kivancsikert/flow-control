@@ -9,7 +9,7 @@ jobs:
         strategy:
             fail-fast: true
             matrix:
-                environment: [esp32]
+                environment: [esp32, mk4]
         steps:
             - uses: actions/checkout@v2
               with:
