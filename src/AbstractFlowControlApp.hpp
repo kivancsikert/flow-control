@@ -19,6 +19,8 @@ public:
 
     virtual gpio_num_t getLedPin() = 0;
 
+    virtual bool getLedEnabledState() = 0;
+
     virtual gpio_num_t getFlowMeterPin() = 0;
 
     /**
@@ -45,8 +47,9 @@ public:
         : BaseSleepListener(sleep) {
     }
 
-    void begin(gpio_num_t ledPin) {
+    void begin(gpio_num_t ledPin, bool enabledState) {
         this->ledPin = ledPin;
+        this->enabledState = enabledState;
     }
 
 protected:
@@ -54,17 +57,18 @@ protected:
         // Turn led on when we start
         Serial.printf("Woken by source: %d\n", event.source);
         pinMode(ledPin, OUTPUT);
-        digitalWrite(ledPin, HIGH);
+        digitalWrite(ledPin, enabledState);
     }
 
     void onDeepSleep(SleepEvent& event) override {
         // Turn off led when we go to sleep
         Serial.printf("Going to sleep, duration: %ld us\n", (long) event.duration.count());
-        digitalWrite(ledPin, LOW);
+        digitalWrite(ledPin, !enabledState);
     }
 
 private:
     gpio_num_t ledPin;
+    bool enabledState;
 };
 
 class AbstractFlowControlApp
@@ -81,7 +85,7 @@ public:
 
 protected:
     virtual void beginApp() override {
-        led.begin(deviceConfig.getLedPin());
+        led.begin(deviceConfig.getLedPin(), deviceConfig.getLedEnabledState());
         flowMeter.begin(deviceConfig.getFlowMeterPin(), deviceConfig.getFlowMeterQFactor());
         valve.begin();
     }
