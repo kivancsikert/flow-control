@@ -17,6 +17,21 @@ private:
     const uint32_t PWM_FREQ = 25000;                              // 25kHz
 
 public:
+    class Config
+        : public NamedConfigurationSection {
+    public:
+        Config(ConfigurationSection* parent)
+            : NamedConfigurationSection(parent, "valve") {
+        }
+
+        Property<milliseconds> switchDuration { this, "switchDuration", milliseconds { 250 } };
+        Property<double> holdDuty { this, "holdDuty", 0.4 };
+    };
+
+    Drv8801ValveController(const Config& config)
+        : config(config) {
+    }
+
     void begin(
         gpio_num_t enablePin,
         gpio_num_t phasePin,
@@ -70,12 +85,15 @@ private:
         digitalWrite(enablePin, HIGH);
 
         int switchDuty = phase ? PMW_MAX_VALUE : 0;
-        int holdDuty = PMW_MAX_VALUE / 2 + (phase ? 1 : -1) * (int) (PMW_MAX_VALUE / 2 * 0.40);
-        Serial.printf("Switching with duty = %d, hold = %d\n", switchDuty, holdDuty);
+        int holdDuty = PMW_MAX_VALUE / 2 + (phase ? 1 : -1) * (int) (PMW_MAX_VALUE / 2 * config.holdDuty.get());
+        Serial.printf("Switching with duty = %d, hold = %d (%f%%), delay = %ld ms\n",
+            switchDuty, holdDuty, config.holdDuty.get() * 100, config.switchDuration.get().count());
         ledcWrite(PWM_PHASE, switchDuty);
-        delay(500);
+        delay(config.switchDuration.get().count());
         ledcWrite(PWM_PHASE, holdDuty);
     }
+
+    const Config& config;
 
     gpio_num_t enablePin;
     gpio_num_t phasePin;

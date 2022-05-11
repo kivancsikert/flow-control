@@ -19,6 +19,8 @@ public:
     gpio_num_t getFlowMeterPin() override {
         return GPIO_NUM_17;
     }
+
+    Drv8801ValveController::Config valve { this };
 };
 
 class FlowControlApp : public AbstractFlowControlApp {
@@ -46,7 +48,7 @@ private:
     FlowControlDeviceConfig deviceConfig;
     ShtHandler environment;
     NormallyClosedValveControlStrategy valveStrategy;
-    Drv8801ValveController valveController;
+    Drv8801ValveController valveController { deviceConfig.valve };
     ValveHandler valve { mqtt, events, valveStrategy, valveController };
     IntervalTask switcher { tasks, "valve-switcher", seconds { 5 }, [this]() {
                                open = !open;
