@@ -5,10 +5,14 @@
 using namespace std::chrono;
 using namespace farmhub::client;
 
+#define PWM_CHANNEL 0        //<- ez innen indul, és inkrementálódik, ha több kell
+#define PWM_RESOLUTION 8     // 8 bit
+#define PMW_MAX_VALUE 255    // 2 ^ PWM_RESOLUTION - 1
+#define PWM_FREQ 25000       // 25kHz
+
 class Drv8801ValveController
     : public ValveController {
 public:
-
     void begin(
         gpio_num_t enablePin,
         gpio_num_t phasePin,
@@ -29,6 +33,9 @@ public:
         this->currentPin = currentPin;
 
         pinMode(enablePin, OUTPUT);
+        ledcAttachPin(enablePin, PWM_CHANNEL);
+        ledcSetup(PWM_CHANNEL, PWM_FREQ, PWM_RESOLUTION);
+
         pinMode(phasePin, OUTPUT);
         pinMode(faultPin, INPUT);
         pinMode(sleepPin, OUTPUT);
@@ -50,14 +57,16 @@ public:
 
     void stop() override {
         digitalWrite(sleepPin, LOW);
-        digitalWrite(enablePin, LOW);
+        ledcWrite(PWM_CHANNEL, 0);
     }
 
 private:
     void drive(bool phase) {
         digitalWrite(sleepPin, HIGH);
-        digitalWrite(enablePin, HIGH);
         digitalWrite(phasePin, phase);
+        ledcWrite(PWM_CHANNEL, PMW_MAX_VALUE);
+        delay(500);
+        ledcWrite(PWM_CHANNEL, (int) (PMW_MAX_VALUE * 0.40));
     }
 
     gpio_num_t enablePin;
