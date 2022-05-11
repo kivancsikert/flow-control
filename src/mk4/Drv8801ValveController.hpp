@@ -33,10 +33,10 @@ public:
         this->currentPin = currentPin;
 
         pinMode(enablePin, OUTPUT);
-        ledcAttachPin(enablePin, PWM_CHANNEL);
+        pinMode(phasePin, OUTPUT);
+        ledcAttachPin(phasePin, PWM_CHANNEL);
         ledcSetup(PWM_CHANNEL, PWM_FREQ, PWM_RESOLUTION);
 
-        pinMode(phasePin, OUTPUT);
         pinMode(faultPin, INPUT);
         pinMode(sleepPin, OUTPUT);
         pinMode(mode1Pin, OUTPUT);
@@ -57,16 +57,20 @@ public:
 
     void stop() override {
         digitalWrite(sleepPin, LOW);
-        ledcWrite(PWM_CHANNEL, 0);
+        digitalWrite(enablePin, LOW);
     }
 
 private:
     void drive(bool phase) {
         digitalWrite(sleepPin, HIGH);
-        digitalWrite(phasePin, phase);
-        ledcWrite(PWM_CHANNEL, PMW_MAX_VALUE);
+        digitalWrite(enablePin, HIGH);
+
+        int switchDuty = phase ? PMW_MAX_VALUE : 0;
+        int holdDuty = PMW_MAX_VALUE / 2 + (phase ? 1 : -1) * (int) (PMW_MAX_VALUE / 2 * 0.40);
+        Serial.printf("Switching with duty = %d, hold = %d\n", switchDuty, holdDuty);
+        ledcWrite(PWM_CHANNEL, switchDuty);
         delay(500);
-        ledcWrite(PWM_CHANNEL, (int) (PMW_MAX_VALUE * 0.40));
+        ledcWrite(PWM_CHANNEL, holdDuty);
     }
 
     gpio_num_t enablePin;
