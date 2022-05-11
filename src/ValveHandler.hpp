@@ -9,6 +9,63 @@ using namespace farmhub::client;
 RTC_DATA_ATTR
 int8_t valveHandlerStoredState;
 
+class ValveController {
+public:
+    virtual void forward() = 0;
+    virtual void reverse() = 0;
+    virtual void stop() = 0;
+};
+
+class ValveControlStrategy {
+public:
+    virtual void open(ValveController& controller) = 0;
+    virtual void close(ValveController& controller) = 0;
+};
+
+class NormallyClosedValveControlStrategy
+    : public ValveControlStrategy {
+public:
+    void open(ValveController& controller) override {
+        controller.forward();
+    }
+    void close(ValveController& controller) override {
+        controller.stop();
+    }
+};
+
+class NormallyOpenValveControlStrategy
+    : public ValveControlStrategy {
+public:
+    void open(ValveController& controller) override {
+        controller.stop();
+    }
+    void close(ValveController& controller) override {
+        controller.reverse();
+    }
+};
+
+class LatchingValveControlStrategy : public ValveControlStrategy {
+public:
+    LatchingValveControlStrategy(milliseconds pulseDuration)
+        : pulseDuration(pulseDuration) {
+    }
+
+    void open(ValveController& controller) override {
+        controller.forward();
+        delay(pulseDuration.count());
+        controller.stop();
+    }
+
+    void close(ValveController& controller) override {
+        controller.reverse();
+        delay(pulseDuration.count());
+        controller.stop();
+    }
+
+private:
+    const milliseconds pulseDuration;
+};
+
 /**
  * @brief Handles the valve on an abstract level.
  *
@@ -16,7 +73,7 @@ int8_t valveHandlerStoredState;
  * Handles remote MQTT commands to open and close the valve.
  * Reports the valve's state via MQTT.
  */
-class AbstractValveHandler
+class ValveHandler
     : public TelemetryProvider {
 public:
     enum class State {
@@ -24,9 +81,10 @@ public:
         OPEN = 1
     };
 
-    AbstractValveHandler(MqttHandler& mqtt, EventHandler& events, milliseconds pulseDuration)
+    ValveHandler(MqttHandler& mqtt, EventHandler& events, ValveControlStrategy& strategy, ValveController& controller)
         : events(events)
-        , pulseDuration(pulseDuration) {
+        , strategy(strategy)
+        , controller(controller) {
         mqtt.registerCommand("set-valve", [&](const JsonObject& request, JsonObject& response) {
             State state = request["state"].as<State>();
             Serial.println("Controlling valve to " + String(static_cast<int>(state)));
@@ -48,16 +106,14 @@ public:
             case State::OPEN:
                 Serial.println("Opening");
                 valveHandlerStoredState = 1;
-                setStateInternal(State::OPEN);
+                strategy.open(controller);
                 break;
             case State::CLOSED:
                 Serial.println("Closing");
                 valveHandlerStoredState = -1;
-                setStateInternal(State::CLOSED);
+                strategy.close(controller);
                 break;
         }
-        delay(pulseDuration.count());
-        resetStateInternal();
         events.publishEvent("valve/state", [=](JsonObject& json) {
             json["state"] = state;
         });
@@ -65,7 +121,7 @@ public:
 
 protected:
     virtual void begin() {
-        resetStateInternal();
+        controller.stop();
 
         // RTC memory is reset to 0 upon power-up
         if (valveHandlerStoredState == 0) {
@@ -79,20 +135,18 @@ protected:
         enabled = true;
     }
 
-    virtual void setStateInternal(State state) = 0;
-    virtual void resetStateInternal() = 0;
-
 private:
     EventHandler& events;
-    const milliseconds pulseDuration;
+    ValveControlStrategy& strategy;
+    ValveController& controller;
 
     State state;
     bool enabled = false;
 };
 
-bool convertToJson(const AbstractValveHandler::State& src, JsonVariant dst) {
+bool convertToJson(const ValveHandler::State& src, JsonVariant dst) {
     return dst.set(static_cast<int>(src));
 }
-void convertFromJson(JsonVariantConst src, AbstractValveHandler::State& dst) {
-    dst = static_cast<AbstractValveHandler::State>(src.as<int>());
+void convertFromJson(JsonVariantConst src, ValveHandler::State& dst) {
+    dst = static_cast<ValveHandler::State>(src.as<int>());
 }

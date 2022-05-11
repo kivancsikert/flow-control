@@ -3,7 +3,8 @@
 #include "../AbstractFlowControlApp.hpp"
 #include "DhtHandler.hpp"
 #include "ModeHandler.hpp"
-#include "ValveHandler.hpp"
+#include "../ValveHandler.hpp"
+#include "RelayValveController.hpp"
 
 const gpio_num_t DHT_PIN = GPIO_NUM_26;
 const gpio_num_t LED_PIN = GPIO_NUM_19;
@@ -74,7 +75,7 @@ public:
         AbstractFlowControlApp::beginApp();
 
         if (deviceConfig.isValvePresent()) {
-            valve.begin(VALVE_OPEN_PIN, VALVE_CLOSE_PIN);
+            valveController.begin(VALVE_OPEN_PIN, VALVE_CLOSE_PIN);
         }
 
         if (deviceConfig.isModeSwitchPresent()) {
@@ -89,6 +90,8 @@ public:
 private:
     FlowControlDeviceConfig deviceConfig;
     DhtHandler environment;
-    ValveHandler valve { mqtt, events, deviceConfig.getValvePulseDuration() };
+    LatchingValveControlStrategy valveStrategy { deviceConfig.getValvePulseDuration()};
+    RelayValveController valveController;
+    ValveHandler valve { mqtt, events, valveStrategy, valveController };
     ModeHandler mode { tasks, sleep, valve };
 };

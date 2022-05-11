@@ -2,7 +2,7 @@
 
 #include "../AbstractFlowControlApp.hpp"
 #include "ShtHandler.hpp"
-#include "ValveHandler.hpp"
+#include "Drv8801ValveController.hpp"
 
 using namespace farmhub::client;
 
@@ -31,7 +31,7 @@ public:
     void beginApp() override {
         AbstractFlowControlApp::beginApp();
         environment.begin();
-        valve.begin(
+        valveController.begin(
             GPIO_NUM_10,    // Enable
             GPIO_NUM_11,    // Phase
             GPIO_NUM_12,    // Fault
@@ -45,7 +45,9 @@ public:
 private:
     FlowControlDeviceConfig deviceConfig;
     ShtHandler environment;
-    ValveHandler valve { mqtt, events, milliseconds { 250 } };
+    NormallyClosedValveControlStrategy valveStrategy;
+    Drv8801ValveController valveController;
+    ValveHandler valve { mqtt, events, valveStrategy, valveController };
     IntervalTask switcher { tasks, "valve-switcher", seconds { 5 }, [this]() {
                                open = !open;
                                valve.setState(open ? ValveHandler::State::OPEN : ValveHandler::State::CLOSED);

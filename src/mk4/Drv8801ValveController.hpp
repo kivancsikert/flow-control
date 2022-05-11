@@ -1,16 +1,13 @@
 #pragma once
 
-#include "../AbstractValveHandler.hpp"
+#include "../ValveHandler.hpp"
 
 using namespace std::chrono;
 using namespace farmhub::client;
 
-class ValveHandler
-    : public AbstractValveHandler {
+class Drv8801ValveController
+    : public ValveController {
 public:
-    ValveHandler(MqttHandler& mqtt, EventHandler& events, milliseconds pulseDuration)
-        : AbstractValveHandler(mqtt, events, pulseDuration) {
-    }
 
     void begin(
         gpio_num_t enablePin,
@@ -41,23 +38,28 @@ public:
 
         digitalWrite(mode1Pin, HIGH);
         digitalWrite(mode2Pin, HIGH);
-
-        AbstractValveHandler::begin();
     }
 
-protected:
-    void setStateInternal(State state) override {
-        digitalWrite(sleepPin, HIGH);
-        digitalWrite(enablePin, HIGH);
-        digitalWrite(phasePin, state == State::OPEN ? HIGH : LOW);
+    void forward() override {
+        drive(HIGH);
     }
 
-    void resetStateInternal() override {
+    void reverse() override {
+        drive(LOW);
+    }
+
+    void stop() override {
         digitalWrite(sleepPin, LOW);
         digitalWrite(enablePin, LOW);
     }
 
 private:
+    void drive(bool phase) {
+        digitalWrite(sleepPin, HIGH);
+        digitalWrite(enablePin, HIGH);
+        digitalWrite(phasePin, phase);
+    }
+
     gpio_num_t enablePin;
     gpio_num_t phasePin;
     gpio_num_t faultPin;
