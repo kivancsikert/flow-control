@@ -2,8 +2,9 @@
 
 #include "../AbstractFlowControlApp.hpp"
 #include "Drv8801ValveController.hpp"
-#include "SoilTemperatureHandler.hpp"
 #include "ShtHandler.hpp"
+#include "SoilMoistureHandler.hpp"
+#include "SoilTemperatureHandler.hpp"
 
 using namespace farmhub::client;
 
@@ -33,12 +34,14 @@ public:
     FlowControlApp()
         : AbstractFlowControlApp(deviceConfig, valveStrategy, valveController) {
         telemetryPublisher.registerProvider(environment);
+        telemetryPublisher.registerProvider(soilMoisture);
         telemetryPublisher.registerProvider(soilTemperature);
     }
 
     void beginApp() override {
         AbstractFlowControlApp::beginApp();
         environment.begin();
+        soilMoisture.begin(GPIO_NUM_6);
         soilTemperature.begin(GPIO_NUM_7);
         valveController.begin(
             GPIO_NUM_10,    // Enable
@@ -54,9 +57,10 @@ public:
 private:
     FlowControlDeviceConfig deviceConfig;
     ShtHandler environment;
+    SoilMoistureHandler soilMoisture;
+    SoilTemperatureHandler soilTemperature;
     NormallyClosedValveControlStrategy valveStrategy;
     Drv8801ValveController valveController { deviceConfig.valve };
-    SoilTemperatureHandler soilTemperature;
 
     bool open = false;
 };
