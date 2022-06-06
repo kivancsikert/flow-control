@@ -2,7 +2,7 @@
 
 #include <Wire.h>
 
-#include <SHTSensor.h>
+#include <SHT31.h>
 
 #include "../AbstractEnvironmentHandler.hpp"
 
@@ -11,28 +11,30 @@ using namespace farmhub::client;
 class ShtHandler
     : public AbstractEnvironmentHandler {
 
+    const int SHT31_ADDRESS = 0x44;
+
 public:
     ShtHandler() = default;
 
     void begin() {
-        Serial.print("Initializing SHT sensor");
+        Serial.print("Initializing SHT sensor\n");
         Wire.begin();
 
-        if (sht.init()) {
+        if (sht.begin()) {
+            Wire.setClock(100000);
             // only supported by SHT3x
-            sht.setAccuracy(SHTSensor::SHT_ACCURACY_MEDIUM);
+            sht.heatOff();
             enabled = true;
-            Serial.print("init(): success\n");
         } else {
-            Serial.print("init(): failed\n");
+            Serial.printf("SHT.init(): failed, error: %x\n", sht.getError());
             enabled = false;
         }
     }
 
 protected:
     void populateTelemetryInternal(JsonObject& json) override {
-        if (!sht.readSample()) {
-            Serial.print("SHT: readSample(): failed\n");
+        if (!sht.read()) {
+            Serial.printf("SHT.read(): failed, error: %x\n", sht.getError());
             return;
         }
         auto temperature = sht.getTemperature();
@@ -42,5 +44,6 @@ protected:
     }
 
 private:
-    SHTSensor sht;
+
+    SHT31 sht;
 };
