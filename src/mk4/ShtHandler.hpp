@@ -31,6 +31,10 @@ public:
 
 protected:
     void populateTelemetryInternal(JsonObject& json) override {
+        if (!sht.readSample()) {
+            Serial.print("SHT: readSample(): failed\n");
+            return;
+        }
         auto temperature = sht.getTemperature();
         auto humidity = sht.getHumidity();
         json["temperature"] = temperature;
