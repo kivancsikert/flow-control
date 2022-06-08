@@ -24,8 +24,8 @@ public:
             : NamedConfigurationSection(parent, "valve") {
         }
 
-        Property<milliseconds> switchDuration { this, "switchDuration", milliseconds { 250 } };
-        Property<double> holdDuty { this, "holdDuty", 0.4 };
+        Property<milliseconds> switchDuration { this, "switchDuration", milliseconds { 500 } };
+        Property<double> holdDuty { this, "holdDuty", 0.5 };
     };
 
     Drv8801ValveController(const Config& config)
