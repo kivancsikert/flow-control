@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../AbstractFlowControlApp.hpp"
+#include "ButtonListener.hpp"
 #include "Drv8801ValveController.hpp"
 #include "ShtHandler.hpp"
 #include "SoilMoistureHandler.hpp"
@@ -61,6 +62,17 @@ private:
     SoilTemperatureHandler soilTemperature;
     NormallyClosedValveControlStrategy valveStrategy;
     Drv8801ValveController valveController { deviceConfig.valve };
+    ButtonListener resetWifi { tasks, "Reset WIFI", GPIO_NUM_0, INPUT_PULLUP, seconds { 5 },
+        [&]() {
+            Serial.println("Resetting WIFI settings");
+            wifiProvider.wm.resetSettings();
+
+            // Blink the LED once for a second
+            bool wasEnabled = led.isEnabled();
+            led.setEnabled(!wasEnabled);
+            delay(1000);
+            led.setEnabled(wasEnabled);
+        } };
 
     bool open = false;
 };

@@ -52,23 +52,33 @@ public:
         this->enabledState = enabledState;
     }
 
+    bool isEnabled() {
+        return enabled;
+    }
+
+    void setEnabled(bool enabled) {
+        this->enabled = enabled;
+        digitalWrite(ledPin, enabled ^ !enabledState);
+    }
+
 protected:
     void onWake(WakeEvent& event) override {
         // Turn led on when we start
         Serial.printf("Woken by source: %d\n", event.source);
         pinMode(ledPin, OUTPUT);
-        digitalWrite(ledPin, enabledState);
+        setEnabled(true);
     }
 
     void onDeepSleep(SleepEvent& event) override {
         // Turn off led when we go to sleep
         Serial.printf("Going to sleep, duration: %ld us\n", (long) event.duration.count());
-        digitalWrite(ledPin, !enabledState);
+        setEnabled(false);
     }
 
 private:
     gpio_num_t ledPin;
     bool enabledState;
+    bool enabled = false;
 };
 
 class AbstractFlowControlApp
@@ -98,13 +108,13 @@ private:
     }
 
     AbstractFlowControlDeviceConfig& deviceConfig;
-    BlockingWiFiManagerProvider wifiProvider;
     WiFiClient client;
 
     FlowControlAppConfig config;
-    LedHandler led { sleep };
     MeterHandler flowMeter { tasks, sleep, config.meter, std::bind(&AbstractFlowControlApp::onSleep, this) };
 
 protected:
+    BlockingWiFiManagerProvider wifiProvider;
+    LedHandler led { sleep };
     ValveHandler valve;
 };
