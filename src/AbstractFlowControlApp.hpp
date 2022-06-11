@@ -85,10 +85,10 @@ class AbstractFlowControlApp
     : public Application {
 public:
     AbstractFlowControlApp(
-        AbstractFlowControlDeviceConfig& deviceConfig, ValveControlStrategy& valveStrategy, ValveController& valveController)
+        AbstractFlowControlDeviceConfig& deviceConfig, ValveController& valveController)
         : Application("Flow control", VERSION, deviceConfig, config, wifiProvider)
         , deviceConfig(deviceConfig)
-        , valve(mqtt, events, valveStrategy, valveController) {
+        , valve(mqtt, events, valveController) {
         telemetryPublisher.registerProvider(flowMeter);
         telemetryPublisher.registerProvider(valve);
     }
