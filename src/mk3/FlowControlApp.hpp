@@ -1,9 +1,9 @@
 #pragma once
 
 #include "../AbstractFlowControlApp.hpp"
+#include "../ValveHandler.hpp"
 #include "DhtHandler.hpp"
 #include "ModeHandler.hpp"
-#include "../ValveHandler.hpp"
 #include "RelayValveController.hpp"
 
 const gpio_num_t DHT_PIN = GPIO_NUM_26;
@@ -69,7 +69,7 @@ public:
 class FlowControlApp : public AbstractFlowControlApp {
 public:
     FlowControlApp()
-        : AbstractFlowControlApp(deviceConfig, valveStrategy, valveController) {
+        : AbstractFlowControlApp(deviceConfig, valveController) {
         telemetryPublisher.registerProvider(environment);
         telemetryPublisher.registerProvider(valve);
         telemetryPublisher.registerProvider(mode);
@@ -94,7 +94,6 @@ public:
 private:
     FlowControlDeviceConfig deviceConfig;
     DhtHandler environment;
-    LatchingValveControlStrategy valveStrategy { deviceConfig.getValvePulseDuration()};
-    RelayValveController valveController;
+    RelayValveController valveController { deviceConfig.getValvePulseDuration() };
     ModeHandler mode { tasks, sleep, valve };
 };

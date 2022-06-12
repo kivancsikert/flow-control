@@ -7,6 +7,19 @@
 using namespace std::chrono;
 using namespace farmhub::client;
 
+enum class ValveControlStrategyType {
+    NormallyOpen,
+    NormallyClosed,
+    Latching
+};
+
+class ValveControlStrategy {
+public:
+    virtual void open() = 0;
+    virtual void close() = 0;
+    virtual String describe() = 0;
+};
+
 class Drv8801ValveController
     : public ValveController {
 
@@ -24,8 +37,94 @@ public:
             : NamedConfigurationSection(parent, "valve") {
         }
 
+        Property<ValveControlStrategyType> strategy { this, "strategy", ValveControlStrategyType::NormallyClosed };
         Property<milliseconds> switchDuration { this, "switchDuration", milliseconds { 500 } };
         Property<double> holdDuty { this, "holdDuty", 0.5 };
+    };
+
+    class HoldingValveControlStrategy
+        : public ValveControlStrategy {
+
+    public:
+        HoldingValveControlStrategy(Drv8801ValveController& controller, milliseconds switchDuration, double holdDuty)
+            : controller(controller)
+            , switchDuration(switchDuration)
+            , holdDuty(holdDuty) {
+        }
+
+    protected:
+        void driveAndHold(bool phase) {
+            controller.drive(phase, 1.0);
+            delay(switchDuration.count());
+            controller.drive(phase, holdDuty);
+        }
+
+        Drv8801ValveController& controller;
+        const milliseconds switchDuration;
+        const double holdDuty;
+    };
+
+    class NormallyClosedValveControlStrategy
+        : public HoldingValveControlStrategy {
+    public:
+        NormallyClosedValveControlStrategy(Drv8801ValveController& controller, milliseconds switchDuration, double holdDuty)
+            : HoldingValveControlStrategy(controller, switchDuration, holdDuty) {
+        }
+
+        void open() override {
+            driveAndHold(HIGH);
+        }
+        void close() override {
+            controller.stop();
+        }
+        String describe() override {
+            return "normally closed with switch duration " + String((int) switchDuration.count()) + "ms and hold duty " + String(holdDuty * 100) + "%";
+        }
+    };
+
+    class NormallyOpenValveControlStrategy
+        : public HoldingValveControlStrategy {
+    public:
+        NormallyOpenValveControlStrategy(Drv8801ValveController& controller, milliseconds switchDuration, double holdDuty)
+            : HoldingValveControlStrategy(controller, switchDuration, holdDuty) {
+        }
+
+        void open() override {
+            controller.stop();
+        }
+        void close() override {
+            driveAndHold(LOW);
+        }
+        String describe() override {
+            return "normally open with switch duration " + String((int) switchDuration.count()) + "ms and hold duty " + String(holdDuty * 100) + "%";
+        }
+    };
+
+    class LatchingValveControlStrategy
+        : public ValveControlStrategy {
+    public:
+        LatchingValveControlStrategy(Drv8801ValveController& controller, milliseconds switchDuration)
+            : controller(controller)
+            , switchDuration(switchDuration) {
+        }
+
+        void open() override {
+            controller.drive(HIGH, 1.0);
+            delay(switchDuration.count());
+            controller.stop();
+        }
+        void close() override {
+            controller.drive(LOW, 1.0);
+            delay(switchDuration.count());
+            controller.stop();
+        }
+        String describe() override {
+            return "latching with switch duration " + String((int) switchDuration.count()) + "ms";
+        }
+
+    private:
+        Drv8801ValveController& controller;
+        const milliseconds switchDuration;
     };
 
     Drv8801ValveController(const Config& config)
@@ -40,8 +139,10 @@ public:
         gpio_num_t mode1Pin,
         gpio_num_t mode2Pin,
         gpio_num_t currentPin) {
-        Serial.printf("Initializing DRV8801 valve handler on pins enable = %d, phase = %d, fault = %d, sleep = %d, mode1 = %d, mode2 = %d, current = %d\n",
-            enablePin, phasePin, faultPin, sleepPin, mode1Pin, mode2Pin, currentPin);
+        strategy = createStrategy(config);
+
+        Serial.printf("Initializing DRV8801 valve handler on pins enable = %d, phase = %d, fault = %d, sleep = %d, mode1 = %d, mode2 = %d, current = %d, valve is %s\n",
+            enablePin, phasePin, faultPin, sleepPin, mode1Pin, mode2Pin, currentPin, strategy->describe().c_str());
 
         this->enablePin = enablePin;
         this->phasePin = phasePin;
@@ -66,34 +167,51 @@ public:
         digitalWrite(mode2Pin, HIGH);
     }
 
-    void forward() override {
-        drive(HIGH);
+    void open() override {
+        strategy->open();
     }
 
-    void reverse() override {
-        drive(LOW);
+    void close() override {
+        strategy->close();
     }
 
-    void stop() override {
+    void reset() override {
+        stop();
+    }
+
+    void stop() {
         digitalWrite(sleepPin, LOW);
         digitalWrite(enablePin, LOW);
     }
 
-private:
-    void drive(bool phase) {
+    void drive(bool phase, double duty = 1) {
         digitalWrite(sleepPin, HIGH);
         digitalWrite(enablePin, HIGH);
 
-        int switchDuty = phase ? PMW_MAX_VALUE : 0;
-        int holdDuty = PMW_MAX_VALUE / 2 + (phase ? 1 : -1) * (int) (PMW_MAX_VALUE / 2 * config.holdDuty.get());
-        Serial.printf("Switching with duty = %d, hold = %d (%f%%), delay = %ld ms\n",
-            switchDuty, holdDuty, config.holdDuty.get() * 100, config.switchDuration.get().count());
-        ledcWrite(PWM_PHASE, switchDuty);
-        delay(config.switchDuration.get().count());
-        ledcWrite(PWM_PHASE, holdDuty);
+        int dutyValue = PMW_MAX_VALUE / 2 + (phase ? 1 : -1) * (int) (PMW_MAX_VALUE / 2 * duty);
+        Serial.printf("Driving valve %s at %f%%\n",
+            phase ? "forward" : "reverse",
+            duty * 100);
+        ledcWrite(PWM_PHASE, dutyValue);
+    }
+
+private:
+    ValveControlStrategy* createStrategy(const Config& config) {
+        switch (config.strategy.get()) {
+            case ValveControlStrategyType::NormallyClosed:
+                return new NormallyClosedValveControlStrategy(*this, config.switchDuration.get(), config.holdDuty.get());
+            case ValveControlStrategyType::NormallyOpen:
+                return new NormallyOpenValveControlStrategy(*this, config.switchDuration.get(), config.holdDuty.get());
+            case ValveControlStrategyType::Latching:
+                return new LatchingValveControlStrategy(*this, config.switchDuration.get());
+            default:
+                fatalError("Unknown strategy");
+                throw "Unknown strategy";
+        }
     }
 
     const Config& config;
+    ValveControlStrategy* strategy;
 
     gpio_num_t enablePin;
     gpio_num_t phasePin;
@@ -103,3 +221,30 @@ private:
     gpio_num_t mode2Pin;
     gpio_num_t currentPin;
 };
+
+bool convertToJson(const ValveControlStrategyType& src, JsonVariant dst) {
+    switch (src) {
+        case ValveControlStrategyType::NormallyOpen:
+            return dst.set("NO");
+        case ValveControlStrategyType::NormallyClosed:
+            return dst.set("NC");
+        case ValveControlStrategyType::Latching:
+            return dst.set("latching");
+        default:
+            Serial.println("Unknown strategy: " + String(static_cast<int>(src)));
+            return dst.set("NC");
+    }
+}
+void convertFromJson(JsonVariantConst src, ValveControlStrategyType& dst) {
+    String strategy = src.as<String>();
+    if (strategy == "NO") {
+        dst = ValveControlStrategyType::NormallyOpen;
+    } else if (strategy == "NC") {
+        dst = ValveControlStrategyType::NormallyClosed;
+    } else if (strategy == "latching") {
+        dst = ValveControlStrategyType::Latching;
+    } else {
+        Serial.println("Unknown strategy: " + strategy);
+        dst = ValveControlStrategyType::NormallyClosed;
+    }
+}

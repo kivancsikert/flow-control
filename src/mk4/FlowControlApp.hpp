@@ -33,7 +33,7 @@ public:
 class FlowControlApp : public AbstractFlowControlApp {
 public:
     FlowControlApp()
-        : AbstractFlowControlApp(deviceConfig, valveStrategy, valveController) {
+        : AbstractFlowControlApp(deviceConfig, valveController) {
         telemetryPublisher.registerProvider(environment);
         telemetryPublisher.registerProvider(soilMoisture);
         telemetryPublisher.registerProvider(soilTemperature);
@@ -60,7 +60,6 @@ private:
     ShtHandler environment;
     SoilMoistureHandler soilMoisture;
     SoilTemperatureHandler soilTemperature;
-    NormallyClosedValveControlStrategy valveStrategy;
     Drv8801ValveController valveController { deviceConfig.valve };
     ButtonListener resetWifi { tasks, "Reset WIFI", GPIO_NUM_0, INPUT_PULLUP, seconds { 5 },
         [&]() {
