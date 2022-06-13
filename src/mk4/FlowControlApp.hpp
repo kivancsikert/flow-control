@@ -39,8 +39,7 @@ public:
         telemetryPublisher.registerProvider(soilTemperature);
     }
 
-    void beginApp() override {
-        AbstractFlowControlApp::beginApp();
+    void beginPeripherials() override {
         environment.begin();
         soilMoisture.begin(GPIO_NUM_6);
         soilTemperature.begin(GPIO_NUM_7);

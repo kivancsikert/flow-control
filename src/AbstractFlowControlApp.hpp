@@ -94,11 +94,16 @@ public:
     }
 
 protected:
-    virtual void beginApp() override {
+    void beginApp() override {
         led.begin(deviceConfig.getLedPin(), deviceConfig.getLedEnabledState());
         flowMeter.begin(deviceConfig.getFlowMeterPin(), deviceConfig.getFlowMeterQFactor());
+
+        beginPeripherials();
+
         valve.begin();
     }
+
+    virtual void beginPeripherials() = 0;
 
 private:
     void onSleep() {
