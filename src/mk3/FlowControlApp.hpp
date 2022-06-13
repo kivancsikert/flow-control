@@ -75,9 +75,7 @@ public:
         telemetryPublisher.registerProvider(mode);
     }
 
-    void beginApp() override {
-        AbstractFlowControlApp::beginApp();
-
+    void beginPeripherials() override {
         if (deviceConfig.isValvePresent()) {
             valveController.begin(VALVE_OPEN_PIN, VALVE_CLOSE_PIN);
         }
