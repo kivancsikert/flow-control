@@ -113,7 +113,6 @@ private:
     }
 
     AbstractFlowControlDeviceConfig& deviceConfig;
-    WiFiClient client;
 
     FlowControlAppConfig config;
     MeterHandler flowMeter { tasks, sleep, config.meter, std::bind(&AbstractFlowControlApp::onSleep, this) };
