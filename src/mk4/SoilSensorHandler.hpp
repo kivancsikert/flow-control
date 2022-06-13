@@ -7,15 +7,15 @@
 
 using namespace farmhub::client;
 
-class SoilTemperatureHandler
+class SoilSensorHandler
     : public AbstractEnvironmentHandler {
 
 public:
-    SoilTemperatureHandler() = default;
+    SoilSensorHandler() = default;
 
-    void begin(gpio_num_t pin) {
-        Serial.printf("Initializing DS18B20 soil temperature sensor on pin %d\n", pin);
-        oneWire.begin(pin);
+    void begin(gpio_num_t temperaturePin, gpio_num_t moisturePin) {
+        Serial.printf("Initializing DS18B20 soil temperature sensor on pin %d\n", temperaturePin);
+        oneWire.begin(temperaturePin);
 
         // locate devices on the bus
         Serial.print("Locating devices...");
@@ -35,6 +35,8 @@ public:
         DeviceAddress thermometer;
         if (!sensors.getAddress(thermometer, 0)) {
             Serial.println("Unable to find address for device");
+            enabled = false;
+            return;
         }
 
         // show the addresses we found on the bus
@@ -42,11 +44,20 @@ public:
         printAddress(thermometer);
         Serial.println();
 
+        Serial.printf("Initializing soil moisture sensor on pin %d\n", moisturePin);
+        this->moisturePin = moisturePin;
+        pinMode(moisturePin, INPUT);
+
         enabled = true;
     }
 
 protected:
     void populateTelemetryInternal(JsonObject& json) override {
+        populateTemperature(json);
+        populateMoisture(json);
+    }
+
+    void populateTemperature(JsonObject& json) {
         if (!sensors.requestTemperaturesByIndex(0)) {
             Serial.println("Failed to get temperature from DS18B20 sensor");
             return;
@@ -57,6 +68,18 @@ protected:
             return;
         }
         json["soilTemperature"] = temperature;
+    }
+
+    void populateMoisture(JsonObject& json) {
+        uint16_t soilMoistureValue = analogRead(moisturePin);
+        Serial.printf("Soil moisture value: %d\n", soilMoistureValue);
+
+        const double run = WaterValue - AirValue;
+        const double rise = 100;
+        const double delta = soilMoistureValue - AirValue;
+        double moisture = (delta * rise) / run;
+
+        json["soilMoisture"] = moisture;
     }
 
 private:
@@ -74,4 +97,8 @@ private:
             Serial.print(deviceAddress[i], HEX);
         }
     }
+
+    const int AirValue = 8191;
+    const int WaterValue = 3800;
+    gpio_num_t moisturePin;
 };
