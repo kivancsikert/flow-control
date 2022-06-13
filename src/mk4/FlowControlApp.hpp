@@ -4,8 +4,7 @@
 #include "ButtonListener.hpp"
 #include "Drv8801ValveController.hpp"
 #include "ShtHandler.hpp"
-#include "SoilMoistureHandler.hpp"
-#include "SoilTemperatureHandler.hpp"
+#include "SoilSensorHandler.hpp"
 
 using namespace farmhub::client;
 
@@ -35,14 +34,12 @@ public:
     FlowControlApp()
         : AbstractFlowControlApp(deviceConfig, valveController) {
         telemetryPublisher.registerProvider(environment);
-        telemetryPublisher.registerProvider(soilMoisture);
-        telemetryPublisher.registerProvider(soilTemperature);
+        telemetryPublisher.registerProvider(soilSensor);
     }
 
     void beginPeripherials() override {
         environment.begin();
-        soilMoisture.begin(GPIO_NUM_6);
-        soilTemperature.begin(GPIO_NUM_7);
+        soilSensor.begin(GPIO_NUM_7, GPIO_NUM_6);
         valveController.begin(
             GPIO_NUM_10,    // Enable
             GPIO_NUM_11,    // Phase
@@ -57,8 +54,7 @@ public:
 private:
     FlowControlDeviceConfig deviceConfig;
     ShtHandler environment;
-    SoilMoistureHandler soilMoisture;
-    SoilTemperatureHandler soilTemperature;
+    SoilSensorHandler soilSensor;
     Drv8801ValveController valveController { deviceConfig.valve };
     ButtonListener resetWifi { tasks, "Reset WIFI", GPIO_NUM_0, INPUT_PULLUP, seconds { 5 },
         [&]() {
