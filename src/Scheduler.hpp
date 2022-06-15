@@ -32,6 +32,10 @@ public:
 
     bool isScheduled(time_point<system_clock> time) {
         for (auto& schedule : schedules) {
+            if (time < schedule.start) {
+                // Skip schedules that have not yet started
+                continue;
+            }
             auto offset = time - schedule.start;
             if (offset % schedule.period < schedule.duration) {
                 return true;

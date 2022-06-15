@@ -34,6 +34,14 @@ TEST_F(SchedulerTest, matches_single_schedule) {
     EXPECT_FALSE(scheduler.isScheduled(base + seconds { 75 }));
 }
 
+TEST_F(SchedulerTest, does_not_match_schedule_not_yet_started) {
+    Scheduler scheduler({
+        Schedule(base, minutes { 1 }, minutes { 1 }),
+    });
+    EXPECT_FALSE(scheduler.isScheduled(base - seconds { 1 }));
+    EXPECT_TRUE(scheduler.isScheduled(base));
+}
+
 TEST_F(SchedulerTest, matches_multiple_schedules) {
     Scheduler scheduler({
         Schedule(base, minutes { 1 }, seconds { 15 }),
