@@ -40,6 +40,7 @@ public:
 
     MeterHandler::Config meter { this };
     Property<seconds> sleepPeriod { this, "sleepPeriod", seconds::zero() };
+    Property<String> schedule { this, "schedule", "[]" };
 };
 
 class LedHandler : public BaseSleepListener {
@@ -89,7 +90,7 @@ public:
         AbstractFlowControlDeviceConfig& deviceConfig, ValveController& valveController)
         : Application("Flow control", VERSION, deviceConfig, config, wifiProvider)
         , deviceConfig(deviceConfig)
-        , valve(mqtt, events, valveController) {
+        , valve(tasks, mqtt, events, valveController) {
         telemetryPublisher.registerProvider(flowMeter);
         telemetryPublisher.registerProvider(valve);
     }
@@ -103,7 +104,16 @@ protected:
 
         beginPeripherials();
 
-        valve.begin();
+        String scheduleValue = config.schedule.get();
+        DynamicJsonDocument scheduleDoc { scheduleValue.length() * 2 };
+        DeserializationError error = deserializeJson(scheduleDoc, scheduleValue);
+        JsonArray scheduleArray;
+        if (error != DeserializationError::Ok) {
+            Serial.printf("Failed to parse schedule: %s\n", error.c_str());
+        } else {
+            scheduleArray = scheduleDoc.as<JsonArray>();
+        }
+        valve.begin(scheduleArray);
     }
 
     virtual void beginPeripherials() = 0;
@@ -116,8 +126,8 @@ private:
     }
 
     AbstractFlowControlDeviceConfig& deviceConfig;
-
     FlowControlAppConfig config;
+
     NtpHandler ntp { tasks, mdns };
     MeterHandler flowMeter { tasks, sleep, config.meter, std::bind(&AbstractFlowControlApp::onSleep, this) };
 

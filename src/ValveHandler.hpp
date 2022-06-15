@@ -1,7 +1,10 @@
 #pragma once
 
 #include <Events.hpp>
+#include <Task.hpp>
 #include <Telemetry.hpp>
+
+#include "ValveScheduler.hpp"
 
 using namespace std::chrono;
 using namespace farmhub::client;
@@ -24,15 +27,17 @@ public:
  * Reports the valve's state via MQTT.
  */
 class ValveHandler
-    : public TelemetryProvider {
+    : public TelemetryProvider,
+      public BaseTask {
 public:
     enum class State {
         CLOSED = -1,
         OPEN = 1
     };
 
-    ValveHandler(MqttHandler& mqtt, EventHandler& events, ValveController& controller)
-        : events(events)
+    ValveHandler(TaskContainer& tasks, MqttHandler& mqtt, EventHandler& events, ValveController& controller)
+        : BaseTask(tasks, "ValveHandler")
+        , events(events)
         , controller(controller) {
         mqtt.registerCommand("set-valve", [&](const JsonObject& request, JsonObject& response) {
             State state = request["state"].as<State>();
@@ -68,7 +73,11 @@ public:
         });
     }
 
-    void begin() {
+    void begin(const JsonArray schedulesJson) {
+        for (JsonVariant scheduleJson : schedulesJson) {
+            schedules.emplace_back(scheduleJson.as<JsonObject>());
+        }
+
         controller.reset();
 
         // RTC memory is reset to 0 upon power-up
@@ -83,12 +92,39 @@ public:
         enabled = true;
     }
 
+protected:
+    const Schedule loop(const Timing& timing) override {
+        if (!enabled || schedules.empty()) {
+            return sleepIndefinitely();
+        }
+
+        auto targetState = scheduler.isScheduled(schedules, system_clock::now())
+                ? State::OPEN
+                : State::CLOSED;
+
+        if (state != targetState) {
+            switch (targetState) {
+                case State::OPEN:
+                    Serial.println("Opening on schedule");
+                    break;
+                case State::CLOSED:
+                    Serial.println("Closing on schedule");
+                    break;
+            }
+            setState(targetState);
+        }
+
+        return sleepFor(seconds { 1 });
+    }
+
 private:
+    ValveScheduler scheduler;
     EventHandler& events;
     ValveController& controller;
 
     State state;
     bool enabled = false;
+    std::list<ValveSchedule> schedules;
 };
 
 bool convertToJson(const ValveHandler::State& src, JsonVariant dst) {

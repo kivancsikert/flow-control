@@ -13,9 +13,9 @@ using std::chrono::seconds;
 using std::chrono::system_clock;
 using std::chrono::time_point;
 
-class Schedule {
+class ValveSchedule {
 public:
-    Schedule(
+    ValveSchedule(
         time_point<system_clock> start,
         seconds period,
         seconds duration)
@@ -24,15 +24,15 @@ public:
         , duration(duration) {
     }
 
-    Schedule(
+    ValveSchedule(
         const char* start,
         seconds period,
         seconds duration)
-        : Schedule(parseIsoDate(start), period, duration) {
+        : ValveSchedule(parseIsoDate(start), period, duration) {
     }
 
-    Schedule(const JsonObject& json)
-        : Schedule(
+    ValveSchedule(const JsonObject& json)
+        : ValveSchedule(
             json["start"].as<const char*>(),
             seconds { json["period"].as<int>() },
             seconds { json["duration"].as<int>() }) {
@@ -51,13 +51,11 @@ private:
     }
 };
 
-class Scheduler {
+class ValveScheduler {
 public:
-    Scheduler(std::list<Schedule> schedules)
-        : schedules(schedules) {
-    }
+    ValveScheduler() = default;
 
-    bool isScheduled(time_point<system_clock> time) {
+    bool isScheduled(const std::list<ValveSchedule>& schedules, time_point<system_clock> time) {
         for (auto& schedule : schedules) {
             if (time < schedule.start) {
                 // Skip schedules that have not yet started
@@ -70,7 +68,4 @@ public:
         }
         return false;
     }
-
-private:
-    const std::list<Schedule> schedules;
 };
