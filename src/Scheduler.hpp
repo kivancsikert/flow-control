@@ -3,6 +3,7 @@
 #include <chrono>
 #include <list>
 
+#include <ArduinoJson.h>
 #include <date.h>
 #include <iostream>
 #include <sstream>
@@ -28,6 +29,13 @@ public:
         seconds period,
         seconds duration)
         : Schedule(parseIsoDate(start), period, duration) {
+    }
+
+    Schedule(const JsonObject& json)
+        : Schedule(
+            json["start"].as<const char*>(),
+            seconds { json["period"].as<int>() },
+            seconds { json["duration"].as<int>() }) {
     }
 
     const time_point<system_clock> start;

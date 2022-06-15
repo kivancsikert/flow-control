@@ -29,6 +29,19 @@ TEST_F(SchedulerTest, can_create_schedule_from_string) {
     EXPECT_EQ(schedule.duration, minutes { 1 });
 }
 
+TEST_F(SchedulerTest, can_create_schedule_from_json) {
+    DynamicJsonDocument doc(2048);
+    deserializeJson(doc, R"({
+        "start": "2020-01-01T00:00:00Z",
+        "period": 60,
+        "duration": 15
+    })");
+    Schedule schedule(doc.as<JsonObject>());
+    EXPECT_EQ(schedule.start, time_point<system_clock> { system_clock::from_time_t(1577836800) });
+    EXPECT_EQ(schedule.period, minutes { 1 });
+    EXPECT_EQ(schedule.duration, seconds { 15 });
+}
+
 TEST_F(SchedulerTest, not_scheduled_when_empty) {
     Scheduler scheduler({});
     EXPECT_FALSE(scheduler.isScheduled(base));
