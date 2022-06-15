@@ -7,6 +7,7 @@ public:
     SchedulerTest() = default;
 };
 
-TEST_F(SchedulerTest, test) {
-    EXPECT_EQ(constant, 1);
+TEST_F(SchedulerTest, not_scheduled_when_empty) {
+    Scheduler scheduler({});
+    EXPECT_FALSE(scheduler.isScheduled(system_clock::now()));
 }
