@@ -3,6 +3,7 @@
 #include <chrono>
 #include <list>
 
+using std::chrono::duration_cast;
 using std::chrono::seconds;
 using std::chrono::system_clock;
 using std::chrono::time_point;
@@ -10,15 +11,15 @@ using std::chrono::time_point;
 class Schedule {
 public:
     Schedule(
-        time_point<system_clock> base,
+        time_point<system_clock> start,
         seconds period,
         seconds duration)
-        : base(base)
+        : start(start)
         , period(period)
         , duration(duration) {
     }
 
-    const time_point<system_clock> base;
+    const time_point<system_clock> start;
     const seconds period;
     const seconds duration;
 };
@@ -31,8 +32,8 @@ public:
 
     bool isScheduled(time_point<system_clock> time) {
         for (auto& schedule : schedules) {
-            auto offset = time - schedule.base;
-            if (offset.count() % schedule.period.count() < schedule.duration.count()) {
+            auto offset = time - schedule.start;
+            if (offset % schedule.period < schedule.duration) {
                 return true;
             }
         }
