@@ -3,6 +3,10 @@
 #include <chrono>
 #include <list>
 
+#include <date.h>
+#include <iostream>
+#include <sstream>
+
 using std::chrono::duration_cast;
 using std::chrono::seconds;
 using std::chrono::system_clock;
@@ -19,9 +23,24 @@ public:
         , duration(duration) {
     }
 
+    Schedule(
+        const char* start,
+        seconds period,
+        seconds duration)
+        : Schedule(parseIsoDate(start), period, duration) {
+    }
+
     const time_point<system_clock> start;
     const seconds period;
     const seconds duration;
+
+private:
+    static time_point<system_clock> parseIsoDate(const char* value) {
+        std::istringstream in(value);
+        time_point<system_clock> date;
+        in >> date::parse("%FT%TZ", date);
+        return date;
+    }
 };
 
 class Scheduler {

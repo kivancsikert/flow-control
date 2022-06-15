@@ -2,6 +2,7 @@
 
 #include "Scheduler.hpp"
 
+using std::chrono::hours;
 using std::chrono::minutes;
 using std::chrono::seconds;
 using std::chrono::system_clock;
@@ -13,6 +14,20 @@ public:
 
     const time_point<system_clock> base { system_clock::now() };
 };
+
+TEST_F(SchedulerTest, can_create_schedule) {
+    Schedule schedule(base, hours { 1 }, minutes { 1 });
+    EXPECT_EQ(schedule.start, base);
+    EXPECT_EQ(schedule.period, hours { 1 });
+    EXPECT_EQ(schedule.duration, minutes { 1 });
+}
+
+TEST_F(SchedulerTest, can_create_schedule_from_string) {
+    Schedule schedule("2020-01-01T00:00:00Z", hours { 1 }, minutes { 1 });
+    EXPECT_EQ(schedule.start, time_point<system_clock> { system_clock::from_time_t(1577836800) });
+    EXPECT_EQ(schedule.period, hours { 1 });
+    EXPECT_EQ(schedule.duration, minutes { 1 });
+}
 
 TEST_F(SchedulerTest, not_scheduled_when_empty) {
     Scheduler scheduler({});
