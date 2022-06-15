@@ -3,6 +3,7 @@
 #include <functional>
 
 #include <Application.hpp>
+#include <Ntp.hpp>
 #include <wifi/WiFiManagerProvider.hpp>
 
 #include "MeterHandler.hpp"
@@ -95,6 +96,8 @@ public:
 
 protected:
     void beginApp() override {
+        ntp.begin();
+
         led.begin(deviceConfig.getLedPin(), deviceConfig.getLedEnabledState());
         flowMeter.begin(deviceConfig.getFlowMeterPin(), deviceConfig.getFlowMeterQFactor());
 
@@ -115,6 +118,7 @@ private:
     AbstractFlowControlDeviceConfig& deviceConfig;
 
     FlowControlAppConfig config;
+    NtpHandler ntp { tasks, mdns };
     MeterHandler flowMeter { tasks, sleep, config.meter, std::bind(&AbstractFlowControlApp::onSleep, this) };
 
 protected:
