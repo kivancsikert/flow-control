@@ -73,11 +73,7 @@ public:
         });
     }
 
-    void begin(const JsonArray schedulesJson) {
-        for (JsonVariant scheduleJson : schedulesJson) {
-            schedules.emplace_back(scheduleJson.as<JsonObject>());
-        }
-
+    void begin() {
         controller.reset();
 
         // RTC memory is reset to 0 upon power-up
@@ -92,6 +88,21 @@ public:
         enabled = true;
     }
 
+    void setSchedule(const JsonArray schedulesJson) {
+        schedules.clear();
+        if (schedulesJson.isNull()) {
+            Serial.println("No schedule defined");
+        } else {
+            Serial.println("Defining schedule:");
+            for (JsonVariant scheduleJson : schedulesJson) {
+                schedules.emplace_back(scheduleJson.as<JsonObject>());
+                Serial.print(" - ");
+                serializeJson(scheduleJson, Serial);
+                Serial.println();
+            }
+        }
+    }
+
 protected:
     const Schedule loop(const Timing& timing) override {
         if (!enabled || schedules.empty()) {
@@ -99,8 +110,8 @@ protected:
         }
 
         auto targetState = scheduler.isScheduled(schedules, system_clock::now())
-                ? State::OPEN
-                : State::CLOSED;
+            ? State::OPEN
+            : State::CLOSED;
 
         if (state != targetState) {
             switch (targetState) {

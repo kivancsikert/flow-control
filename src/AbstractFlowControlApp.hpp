@@ -40,7 +40,7 @@ public:
 
     MeterHandler::Config meter { this };
     Property<seconds> sleepPeriod { this, "sleepPeriod", seconds::zero() };
-    Property<String> schedule { this, "schedule", "[]" };
+    RawJsonEntry schedule { this, "schedule" };
 };
 
 class LedHandler : public BaseSleepListener {
@@ -93,6 +93,9 @@ public:
         , valve(tasks, mqtt, events, valveController) {
         telemetryPublisher.registerProvider(flowMeter);
         telemetryPublisher.registerProvider(valve);
+        config.onUpdate([&]() {
+            valve.setSchedule(config.schedule.get());
+        });
     }
 
 protected:
@@ -104,16 +107,7 @@ protected:
 
         beginPeripherials();
 
-        String scheduleValue = config.schedule.get();
-        DynamicJsonDocument scheduleDoc { scheduleValue.length() * 2 };
-        DeserializationError error = deserializeJson(scheduleDoc, scheduleValue);
-        JsonArray scheduleArray;
-        if (error != DeserializationError::Ok) {
-            Serial.printf("Failed to parse schedule: %s\n", error.c_str());
-        } else {
-            scheduleArray = scheduleDoc.as<JsonArray>();
-        }
-        valve.begin(scheduleArray);
+        valve.begin();
     }
 
     virtual void beginPeripherials() = 0;

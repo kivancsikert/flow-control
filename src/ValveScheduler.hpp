@@ -38,6 +38,12 @@ public:
             seconds { json["duration"].as<int>() }) {
     }
 
+    void print() const {
+        std::cout << "start: " << date::format("%FT%TZ", start) << std::endl;
+        std::cout << "period: " << period.count() << " seconds" << std::endl;
+        std::cout << "duration: " << duration.count() << " seconds" << std::endl;
+    }
+
     const time_point<system_clock> start;
     const seconds period;
     const seconds duration;
