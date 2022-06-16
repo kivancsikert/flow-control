@@ -3,6 +3,7 @@
 #include <functional>
 
 #include <Application.hpp>
+#include <Ntp.hpp>
 #include <wifi/WiFiManagerProvider.hpp>
 
 #include "MeterHandler.hpp"
@@ -39,6 +40,7 @@ public:
 
     MeterHandler::Config meter { this };
     Property<seconds> sleepPeriod { this, "sleepPeriod", seconds::zero() };
+    RawJsonEntry schedule { this, "schedule" };
 };
 
 class LedHandler : public BaseSleepListener {
@@ -88,13 +90,18 @@ public:
         AbstractFlowControlDeviceConfig& deviceConfig, ValveController& valveController)
         : Application("Flow control", VERSION, deviceConfig, config, wifiProvider)
         , deviceConfig(deviceConfig)
-        , valve(mqtt, events, valveController) {
+        , valve(tasks, mqtt, events, valveController) {
         telemetryPublisher.registerProvider(flowMeter);
         telemetryPublisher.registerProvider(valve);
+        config.onUpdate([&]() {
+            valve.setSchedule(config.schedule.get());
+        });
     }
 
 protected:
     void beginApp() override {
+        ntp.begin();
+
         led.begin(deviceConfig.getLedPin(), deviceConfig.getLedEnabledState());
         flowMeter.begin(deviceConfig.getFlowMeterPin(), deviceConfig.getFlowMeterQFactor());
 
@@ -113,8 +120,9 @@ private:
     }
 
     AbstractFlowControlDeviceConfig& deviceConfig;
-
     FlowControlAppConfig config;
+
+    NtpHandler ntp { tasks, mdns };
     MeterHandler flowMeter { tasks, sleep, config.meter, std::bind(&AbstractFlowControlApp::onSleep, this) };
 
 protected:

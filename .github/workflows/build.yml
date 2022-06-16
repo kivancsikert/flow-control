@@ -9,7 +9,7 @@ jobs:
         strategy:
             fail-fast: true
             matrix:
-                environment: [mk3, mk4]
+                environment: [mk3, mk4, native]
         steps:
             - uses: actions/checkout@v2
               with:
@@ -49,9 +49,9 @@ jobs:
             #   run: |
             #       # Required before PlatformIO 5.2.0 - https://github.com/platformio/platformio-core/issues/3901
             #       pio platform install native
-            # - name: Run unit tests
-            #   if: matrix.environment == 'native'
-            #   run: pio test --environment native
+            - name: Run unit tests
+              if: matrix.environment == 'native'
+              run: pio test --environment native
     release:
         needs: build
         if: startsWith(github.ref, 'refs/tags/')
