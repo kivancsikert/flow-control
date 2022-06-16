@@ -90,7 +90,7 @@ public:
 
     void setSchedule(const JsonArray schedulesJson) {
         schedules.clear();
-        if (schedulesJson.isNull()) {
+        if (schedulesJson.isNull() || schedulesJson.size() == 0) {
             Serial.println("No schedule defined");
         } else {
             Serial.println("Defining schedule:");
