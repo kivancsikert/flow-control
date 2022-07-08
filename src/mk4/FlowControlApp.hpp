@@ -1,7 +1,8 @@
 #pragma once
 
+#include <Buttons.hpp>
+
 #include "../AbstractFlowControlApp.hpp"
-#include "ButtonListener.hpp"
 #include "Drv8801ValveController.hpp"
 #include "ShtHandler.hpp"
 #include "SoilSensorHandler.hpp"
@@ -38,6 +39,7 @@ public:
     }
 
     void beginPeripherials() override {
+        resetWifi.begin(GPIO_NUM_0, INPUT_PULLUP);
         environment.begin();
         soilSensor.begin(GPIO_NUM_7, GPIO_NUM_6);
         valveController.begin(
@@ -56,7 +58,7 @@ private:
     ShtHandler environment;
     SoilSensorHandler soilSensor;
     Drv8801ValveController valveController { deviceConfig.valve };
-    ButtonListener resetWifi { tasks, "Reset WIFI", GPIO_NUM_0, INPUT_PULLUP, seconds { 5 },
+    HeldButtonListener resetWifi { tasks, "Reset WIFI", seconds { 5 },
         [&]() {
             Serial.println("Resetting WIFI settings");
             wifiProvider.wm.resetSettings();
