@@ -32,6 +32,7 @@ class ValveHandler
 public:
     enum class State {
         CLOSED = -1,
+        NONE = 0,
         OPEN = 1
     };
 
@@ -39,10 +40,17 @@ public:
         : BaseTask(tasks, "ValveHandler")
         , events(events)
         , controller(controller) {
-        mqtt.registerCommand("set-valve", [&](const JsonObject& request, JsonObject& response) {
-            State state = request["state"].as<State>();
-            Serial.println("Controlling valve to " + String(static_cast<int>(state)));
-            setState(state);
+        mqtt.registerCommand("override", [&](const JsonObject& request, JsonObject& response) {
+            State targetState = request["state"].as<State>();
+            if (targetState == State::NONE) {
+                resume();
+            } else {
+                seconds duration = request.containsKey("duration")
+                    ? request["duration"].as<seconds>()
+                    : hours { 1 };
+                override(targetState, duration);
+                response["duration"] = duration;
+            }
             response["state"] = state;
         });
     }
@@ -52,25 +60,13 @@ public:
             return;
         }
         json["valve"] = state;
-    }
-
-    void setState(State state) {
-        this->state = state;
-        switch (state) {
-            case State::OPEN:
-                Serial.println("Opening");
-                valveHandlerStoredState = 1;
-                controller.open();
-                break;
-            case State::CLOSED:
-                Serial.println("Closing");
-                valveHandlerStoredState = -1;
-                controller.close();
-                break;
+        if (manualOverrideEnd != time_point<system_clock>()) {
+            time_t rawtime = system_clock::to_time_t(manualOverrideEnd);
+            auto timeinfo = gmtime(&rawtime);
+            char buffer[80];
+            strftime(buffer, 80, "%FT%TZ", timeinfo);
+            json["overrideEnd"] = string(buffer);
         }
-        events.publishEvent("valve/state", [=](JsonObject& json) {
-            json["state"] = state;
-        });
     }
 
     void begin() {
@@ -109,31 +105,68 @@ protected:
             return sleepIndefinitely();
         }
 
-        auto targetState = scheduler.isScheduled(schedules, system_clock::now())
-            ? State::OPEN
-            : State::CLOSED;
-
-        if (state != targetState) {
-            switch (targetState) {
-                case State::OPEN:
-                    Serial.println("Opening on schedule");
-                    break;
-                case State::CLOSED:
-                    Serial.println("Closing on schedule");
-                    break;
+        if (manualOverrideEnd < system_clock::now()) {
+            if (manualOverrideEnd != time_point<system_clock>()) {
+                resume();
             }
-            setState(targetState);
+
+            auto targetState = scheduler.isScheduled(schedules, system_clock::now())
+                ? State::OPEN
+                : State::CLOSED;
+
+            if (state != targetState) {
+                switch (targetState) {
+                    case State::OPEN:
+                        Serial.println("Opening on schedule");
+                        break;
+                    case State::CLOSED:
+                        Serial.println("Closing on schedule");
+                        break;
+                }
+                setState(targetState);
+            }
         }
 
         return sleepFor(seconds { 1 });
     }
 
 private:
+    void override(State state, seconds duration) {
+        Serial.printf("Overriding valve to %d for %d seconds\n", static_cast<int>(state), duration.count());
+        manualOverrideEnd = system_clock::now() + duration;
+        setState(state);
+    }
+
+    void resume() {
+        Serial.println("Normal valve operation resumed");
+        manualOverrideEnd = time_point<system_clock>();
+    }
+
+    void setState(State state) {
+        this->state = state;
+        switch (state) {
+            case State::OPEN:
+                Serial.println("Opening");
+                valveHandlerStoredState = 1;
+                controller.open();
+                break;
+            case State::CLOSED:
+                Serial.println("Closing");
+                valveHandlerStoredState = -1;
+                controller.close();
+                break;
+        }
+        events.publishEvent("valve/state", [=](JsonObject& json) {
+            json["state"] = state;
+        });
+    }
+
     ValveScheduler scheduler;
     EventHandler& events;
     ValveController& controller;
 
-    State state;
+    State state = State::NONE;
+    time_point<system_clock> manualOverrideEnd;
     bool enabled = false;
     std::list<ValveSchedule> schedules;
 };
