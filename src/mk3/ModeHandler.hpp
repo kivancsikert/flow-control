@@ -111,10 +111,10 @@ private:
             mode = currentMode;
             switch (mode) {
                 case Mode::OPEN:
-                    valveHandler.setState(ValveHandler::State::OPEN);
+                    valveHandler.override(ValveHandler::State::OPEN, hours { 100 * 365 * 24 });
                     break;
                 case Mode::CLOSED:
-                    valveHandler.setState(ValveHandler::State::CLOSED);
+                    valveHandler.override(ValveHandler::State::CLOSED, hours { 100 * 365 * 24 });
                     break;
                 case Mode::AUTO:
                     // Do nothing, it will be handled by the valve handler

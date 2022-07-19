@@ -99,6 +99,17 @@ public:
         }
     }
 
+    void override(State state, seconds duration) {
+        Serial.printf("Overriding valve to %d for %d seconds\n", static_cast<int>(state), duration.count());
+        manualOverrideEnd = system_clock::now() + duration;
+        setState(state);
+    }
+
+    void resume() {
+        Serial.println("Normal valve operation resumed");
+        manualOverrideEnd = time_point<system_clock>();
+    }
+
 protected:
     const Schedule loop(const Timing& timing) override {
         if (!enabled || schedules.empty()) {
@@ -131,17 +142,6 @@ protected:
     }
 
 private:
-    void override(State state, seconds duration) {
-        Serial.printf("Overriding valve to %d for %d seconds\n", static_cast<int>(state), duration.count());
-        manualOverrideEnd = system_clock::now() + duration;
-        setState(state);
-    }
-
-    void resume() {
-        Serial.println("Normal valve operation resumed");
-        manualOverrideEnd = time_point<system_clock>();
-    }
-
     void setState(State state) {
         this->state = state;
         switch (state) {
